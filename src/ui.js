@@ -99,7 +99,7 @@ const UI = (() => {
         el.setAttribute('aria-label', title);
         el.innerHTML = `
             <div class="titlebar" data-drag>
-              <div class="left"><div class="lights"><i data-act="close" aria-label="닫기"></i><i data-act="min" aria-label="내리기"></i><i data-act="zoom" aria-label="크게"></i></div><span class="tb-left"></span></div>
+              <div class="left"><div class="lights"><i data-act="close" aria-label="닫기"></i><i class="off"></i><i data-act="zoom" aria-label="크게"></i></div><span class="tb-left"></span></div>
               <div class="title"><b></b><small></small></div>
               <div class="right"></div>
             </div>
@@ -127,7 +127,9 @@ const UI = (() => {
                 document.removeEventListener('keydown', onKey, true);
                 onClose?.();
             },
+            // 아래 독(내린 창 목록)은 쓰지 않는다. 내리기 = 닫기.
             minimize() {
+                return api.close();
                 el.classList.add('hidden');
                 scrim?.classList.add('hidden');
                 api.minimized = true;
@@ -154,7 +156,7 @@ const UI = (() => {
             else if (act === 'min') api.minimize();
             else if (act === 'zoom') el.classList.toggle('zoomed');
         });
-        scrim?.addEventListener('click', () => api.minimize());
+        scrim?.addEventListener('click', () => api.close());
 
         const onKey = ev => {
             if (api.minimized || windows.get(id) !== api) return;

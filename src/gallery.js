@@ -170,12 +170,12 @@ const Gallery = (() => {
             } else if (act === 'goto' && it) {
                 const md = Crack.findMarkdownByKey(it.messageKey);
                 if (!md) return UI.toast({ title: '그 답변이 화면에 없어', body: '위로 스크롤해서 그 답변을 불러온 다음 다시 눌러줘.' });
-                G.win.minimize();
+                G.win.close();
                 md.scrollIntoView({ behavior: 'smooth', block: 'center' });
             } else if (act === 'studio' && it) {
                 const md = Crack.findMarkdownByKey(it.messageKey);
                 if (!md) return UI.toast({ title: '그 답변이 화면에 없어', body: '위로 스크롤해서 그 답변을 불러온 다음 다시 눌러줘.' });
-                G.win.minimize();
+                G.win.close();
                 Studio.open(md);
             } else if (act === 'delete' && it) {
                 await App.removeHistoryItem(it.roomId, it.messageKey, it.index);

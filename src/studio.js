@@ -32,7 +32,7 @@ const Studio = (() => {
             view: -1,
             request: ''
         };
-        S.win = UI.openWindow({ id: 'studio', className: 'studio', title: '삽화 스튜디오', subtitle: '', onClose: () => { S?.controller?.abort(); S = null; } });
+        S.win = UI.openWindow({ id: 'studio', className: 'studio', title: '삽화 스튜디오', subtitle: '', onClose: () => { if (S?.status === 'analyzing') S.controller?.abort(); S = null; } });
         S.win.setRight(`
             <select class="select" data-model style="width:auto">${UI.options(Object.values(Core.MODELS).map(m => [m.id, `NAI ${m.label}`]), S.model)}</select>
             <button class="icon-btn" data-act="gallery" title="삽화 갤러리">${icons.photo}</button>
@@ -110,7 +110,7 @@ const Studio = (() => {
             sess.rec = rec;
             sess.view = rec.index;
             sess.lastSeed = seed;
-            if (sess.win.minimized) UI.toast({ title: '삽화 완성', kind: 'ok', body: sess.state.title || '채팅에 넣었어.' });
+            if (!UI.windows.has('studio')) UI.toast({ title: '삽화 완성', kind: 'ok', body: sess.state.title || '채팅에 넣었어.' });
         } catch (err) {
             if (S === sess && err?.name !== 'AbortError') sess.error = err.message;
             App.reportError(err, '생성 실패');

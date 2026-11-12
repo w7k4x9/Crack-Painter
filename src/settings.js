@@ -32,7 +32,7 @@ const Settings = (() => {
         });
         win.body.innerHTML = `
           <div class="side">
-            <div class="titlebar" data-drag><div class="left"><div class="lights"><i data-act="close" aria-label="닫기"></i><i data-act="min" aria-label="내리기"></i><i class="off"></i></div></div></div>
+            <div class="titlebar" data-drag><div class="left"><div class="lights"><i data-act="close" aria-label="닫기"></i><i class="off"></i><i class="off"></i></div></div></div>
             <nav class="nav scroll">${PANES.map(([id, label, ic, color]) => `<button data-pane="${id}"><span class="ic" style="background:${color}">${ic}</span>${label}</button>`).join('')}</nav>
           </div>
           <div class="main">
