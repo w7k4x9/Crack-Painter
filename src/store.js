@@ -10,6 +10,27 @@
 const Net = (() => {
     'use strict';
 
+    function serviceOf(url) {
+        const h = String(url || '');
+        if (/novelai\.net/.test(h)) return 'NovelAI';
+        if (/googleapis\.com/.test(h)) return 'Gemini';
+        if (/deepseek\.com/.test(h)) return 'DeepSeek';
+        return '서버';
+    }
+
+    // 서비스별로 흔한 원인을 사람 말로 바꾼다. pane 이 있으면 알림에 "설정 열기" 버튼이 붙는다.
+    function explain(service, status, detail) {
+        const d = String(detail || '');
+        if (service === 'Gemini' && (/API key not valid|API_KEY_INVALID|api key/i.test(d) || status === 403)) {
+            return { text: 'Gemini 키가 올바르지 않아. NovelAI 토큰(pst-…)이 아니라 Google AI Studio에서 받은 AIza… 키를 넣어야 해.', pane: 'api' };
+        }
+        if (service === 'DeepSeek' && status === 401) return { text: 'DeepSeek 키가 올바르지 않아.', pane: 'api' };
+        if (service === 'NovelAI' && status === 401) return { text: 'NovelAI 토큰이 틀렸거나 만료됐어. NovelAI 설정에서 새 토큰을 받아 넣어줘.', pane: 'api' };
+        if (service === 'NovelAI' && status === 402) return { text: 'NovelAI 구독이 없거나 Anlas가 부족해.', pane: null };
+        if (service === 'NovelAI' && status === 400) return { text: `NovelAI가 요청 내용을 거부했어. 토큰 문제는 아니야(토큰이 틀리면 401이 떠).${d ? ` 서버 메시지: ${d}` : ''}`, pane: null };
+        return null;
+    }
+
     function httpMessage(status, text) {
         let detail = '';
         try {
@@ -32,11 +53,20 @@ const Net = (() => {
         return `${hint} (HTTP ${status})${detail ? ` · ${detail}` : ''}`;
     }
 
+    function extractDetail(text) {
+        try {
+            const j = JSON.parse(text);
+            return j?.error?.message || j?.message || (typeof j?.error === 'string' ? j.error : '') || '';
+        } catch (_) {
+            return String(text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+        }
+    }
+
     function bytesToText(buf) {
         try { return new TextDecoder().decode(new Uint8Array(buf).slice(0, 4000)); } catch (_) { return ''; }
     }
 
-    function request({ method = 'GET', url, headers = {}, data, raw = false, responseType = 'text', timeout = 120000, signal }) {
+    function request({ method = 'GET', url, headers = {}, data, raw = false, responseType = 'text', timeout = 120000, signal, onError }) {
         return new Promise((resolve, reject) => {
             if (signal?.aborted) return reject(abortError());
             let done = false;
@@ -50,9 +80,15 @@ const Net = (() => {
                     if (res.status < 200 || res.status >= 300) {
                         const text = typeof res.responseText === 'string' && res.responseText ? res.responseText
                             : res.response instanceof ArrayBuffer ? bytesToText(res.response) : String(res.response || '');
-                        const err = new Error(httpMessage(res.status, text));
+                        const service = serviceOf(url);
+                        const detail = extractDetail(text);
+                        const ex = explain(service, res.status, detail);
+                        const err = new Error(ex ? ex.text : `${service}: ${httpMessage(res.status, text)}`);
                         err.status = res.status;
+                        err.service = service;
                         err.body = text;
+                        if (ex?.pane) err.pane = ex.pane;
+                        try { onError?.(err); } catch (_) {}
                         return finish(reject, err);
                     }
                     if (responseType === 'arraybuffer') return finish(resolve, res.response);
@@ -111,7 +147,9 @@ const Store = (() => {
             presets: [],
             characters: [],
             rooms: {},
-            ui: { contextTurns: 4 }
+            ui: { contextTurns: 4 },
+            scene: { people: 'auto' },
+            folder: { enabled: false, perRoom: true, download: false }
         };
     }
 
@@ -125,6 +163,8 @@ const Store = (() => {
         out.characters = Array.isArray(s.characters) ? s.characters.map(normChar) : [];
         out.rooms = s.rooms && typeof s.rooms === 'object' ? s.rooms : {};
         out.ui = { ...d.ui, ...(s.ui || {}) };
+        out.scene = { ...d.scene, ...(s.scene || {}) };
+        out.folder = { ...d.folder, ...(s.folder || {}) };
         if (!Core.MODELS[out.model]) out.model = Core.DEFAULT_MODEL;
         return out;
     }
@@ -190,10 +230,11 @@ const Store = (() => {
     function db() {
         if (dbp) return dbp;
         dbp = new Promise((resolve, reject) => {
-            const req = indexedDB.open('crack-painter', 1);
+            const req = indexedDB.open('crack-painter', 2);
             req.onupgradeneeded = () => {
                 const d = req.result;
                 if (!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+                if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
                 if (!d.objectStoreNames.contains('records')) {
                     const s = d.createObjectStore('records', { keyPath: 'key' });
                     s.createIndex('room', 'roomId');
@@ -268,6 +309,15 @@ const Store = (() => {
         emit(`records:${roomId}`);
     }
 
+    async function getMeta(key) {
+        const d = await db();
+        return reqP(d.transaction('meta').objectStore('meta').get(key));
+    }
+
+    async function setMeta(key, value) {
+        await tx('meta', 'readwrite', s => (value == null ? s.delete(key) : s.put(value, key)));
+    }
+
     async function usage() {
         try {
             const est = await navigator.storage?.estimate?.();
@@ -277,5 +327,5 @@ const Store = (() => {
         }
     }
 
-    return { on, emit, settings, update, secrets, setSecret, roomChars, uid, putImage, getImage, deleteImage, getRecord, roomRecords, putRecord, deleteRecord, usage };
+    return { on, emit, settings, update, secrets, setSecret, roomChars, uid, putImage, getImage, deleteImage, getRecord, roomRecords, putRecord, deleteRecord, usage, getMeta, setMeta };
 })();

@@ -258,7 +258,7 @@ const Core = (() => {
         if (droppedAppearance) notes.push({ level: 'info', text: `장면 칸의 머리색·눈색 같은 외형 태그 ${droppedAppearance}개는 캐릭터 칸이 맡으니까 뺐어.` });
         const sceneCaption = isV5 ? stripNames(scene.caption, names).trim() : '';
 
-        const count = String(scene.count || '').trim() || (outChars.length ? countTag(subjects) : '');
+        const count = String(scene.count || '').trim() || (outChars.length === 1 ? `${countTag(subjects)}, solo` : outChars.length ? countTag(subjects) : '');
 
         const styleTags = dedupe([...splitTags(style.pos), ...movedStyle]);
         const baseTags = dedupe([...styleTags, ...splitTags(count), ...sceneTags]);

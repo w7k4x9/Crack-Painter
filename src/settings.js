@@ -32,7 +32,7 @@ const Settings = (() => {
         });
         win.body.innerHTML = `
           <div class="side">
-            <div class="titlebar" data-drag><div class="left"><div class="lights"><i data-act="close">${icons.x}</i><i data-act="min">${icons.minus}</i><i class="off"></i></div></div></div>
+            <div class="titlebar" data-drag><div class="left"><div class="lights"><i data-act="close" aria-label="닫기"></i><i data-act="min" aria-label="내리기"></i><i class="off"></i></div></div></div>
             <nav class="nav scroll">${PANES.map(([id, label, ic, color]) => `<button data-pane="${id}"><span class="ic" style="background:${color}">${ic}</span>${label}</button>`).join('')}</nav>
           </div>
           <div class="main">
@@ -71,7 +71,7 @@ const Settings = (() => {
         const k = Store.secrets();
         const a = s.analyzer;
         const keyRow = (field, label, ph) => `
-          <div class="item"><span class="label"><b>${label}</b><small>${k[field] ? '저장됨 · 이 브라우저의 확장 프로그램 저장소에만 있어' : '아직 없음'}</small></span>
+          <div class="item"><span class="label"><b>${label}</b><small data-key-hint="${field}">${keyHint(field, k[field])}</small></span>
             <input class="field mono" type="password" autocomplete="off" data-secret="${field}" placeholder="${ph}" value="${val(k[field])}" style="max-width:260px">
           </div>`;
         return `
@@ -83,17 +83,51 @@ const Settings = (() => {
 
           <div class="section-title">장면 분석 AI</div>
           <div class="group">
-            <div class="item"><span class="label"><b>사용할 AI</b></span>${UI.seg('provider', [['gemini', 'Gemini'], ['deepseek', 'DeepSeek']], a.provider)}</div>
-            ${a.provider === 'deepseek'
+            <div class="item"><span class="label"><b>사용할 AI</b><small>채팅을 읽고 어떤 장면을 그릴지 고르는 역할 · NovelAI 토큰과는 별개야</small></span>${UI.seg('provider', [['gemini', 'Gemini'], ['deepseek', 'DeepSeek'], ['none', '안 씀']], a.provider)}</div>
+            ${a.provider === 'none'
+                ? `<div class="item"><span class="label muted">분석 AI 없이 NovelAI 토큰만으로 써. 스튜디오를 열면 등록 인물만 채워진 빈 장면이 나오고, 장면 태그와 자세는 직접 쓰면 돼. ⚡ 바로 생성은 외형·스타일만으로 그려.</span></div>`
+                : a.provider === 'deepseek'
                 ? `${keyRow('deepseekKey', 'DeepSeek 키', 'sk-…')}
                    <div class="item"><span class="label"><b>모델</b></span><select class="select" data-k="analyzer.deepseekModel" style="width:auto">${UI.options(LLM.DEEPSEEK_MODELS, a.deepseekModel)}</select></div>`
                 : `${keyRow('geminiKey', 'Gemini 키', 'AIza…')}
-                   <div class="item"><span class="label"><b>모델</b></span><select class="select" data-k="analyzer.geminiModel" style="width:auto">${UI.options(LLM.GEMINI_MODELS, a.geminiModel)}</select></div>`}
-            <div class="item"><span class="label"><b>생각 깊이</b><small>깊을수록 장면 선택이 정확하지만 느려</small></span>
+                   <div class="item"><span class="label"><b>모델</b><small><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--accent)">Google AI Studio</a>에서 무료로 키를 받을 수 있어</small></span><select class="select" data-k="analyzer.geminiModel" style="width:auto">${UI.options(LLM.GEMINI_MODELS, a.geminiModel)}</select></div>`}
+            ${a.provider === 'none' ? '' : `<div class="item"><span class="label"><b>생각 깊이</b><small>깊을수록 장면 선택이 정확하지만 느려</small></span>
               <select class="select" data-k="analyzer.thinking" style="width:auto">${UI.options([['auto', '자동'], ['fast', '빠르게'], ['normal', '보통'], ['deep', '깊게']], a.thinking)}</select></div>
-            <div class="item"><span class="label" data-llm-status><small>키와 모델이 맞는지 짧은 요청으로 확인해</small></span><button class="btn" data-act="test-llm">확인</button></div>
+            <div class="item"><span class="label" data-llm-status><small>키와 모델이 맞는지 짧은 요청으로 확인해</small></span><button class="btn" data-act="test-llm">확인</button></div>`}
           </div>
           <p class="footnote">키는 Tampermonkey/Violentmonkey 저장소에 저장돼. 탭을 여러 개 열어도 다른 탭이 지우지 않아. 스크립트를 지우고 새로 설치하면 저장소도 같이 지워지니까, 업데이트는 설치된 스크립트를 덮어쓰는 방식으로 해줘.</p>`;
+    }
+
+    const KEY_SHAPE = { naiKey: /^pst-/, geminiKey: /^AIza/, deepseekKey: /^sk-/ };
+    const KEY_NAME = { naiKey: 'NovelAI 토큰(pst-…)', geminiKey: 'Gemini 키(AIza…)', deepseekKey: 'DeepSeek 키(sk-…)' };
+    function keyOwner(v) { return Object.keys(KEY_SHAPE).find(f => KEY_SHAPE[f].test(v)) || null; }
+    function keyHint(field, v) {
+        if (!v) return '아직 없음';
+        const owner = keyOwner(v);
+        if (owner && owner !== field) return `<span style="color:var(--red)">이건 ${KEY_NAME[owner]}야. 여기엔 ${KEY_NAME[field]}를 넣어야 해.</span>`;
+        if (!owner) return `<span style="color:var(--orange)">저장됨 · 보통 ${KEY_NAME[field].replace(/.*\((.*)\)/, '$1')} 로 시작하는데 형식이 달라</span>`;
+        return '저장됨 · 이 브라우저의 확장 프로그램 저장소에만 있어';
+    }
+
+    // 붙여넣은 키를 저장. 다른 칸의 키 모양이면 맞는 칸으로 옮긴다.
+    const lastKey = {};
+    function saveKey(field, raw) {
+        const v = String(raw || '').replace(/^Bearer\s+/i, '').replace(/\s+/g, '');
+        if (lastKey[field] === v) return;
+        lastKey[field] = v;
+        const owner = keyOwner(v);
+        if (owner && owner !== field) {
+            Store.setSecret(owner, v);
+            // 이 칸에 원래 있던 값도 다른 서비스 키였다면 지운다
+            const cur = Store.secrets()[field];
+            if (cur && keyOwner(cur) && keyOwner(cur) !== field) Store.setSecret(field, '');
+            UI.toast({ title: `${KEY_NAME[owner]}이라 그 칸에 넣었어`, body: `${KEY_NAME[field]} 칸에는 그 서비스의 키를 따로 넣어줘.`, kind: 'ok' });
+            render();
+            return;
+        }
+        Store.setSecret(field, v);
+        const hint = win?.el.querySelector(`[data-key-hint="${field}"]`);
+        if (hint) hint.innerHTML = keyHint(field, v);
     }
 
     // ── 스타일 ───────────────────────────────────────────
@@ -165,6 +199,12 @@ const Settings = (() => {
             ${s.characters.length ? s.characters.map(c => `<div class="item"><span class="label"><b>${esc(c.name)}</b><small class="mono">${esc(Core.joinTags([c.look, c.outfit]).slice(0, 70))}</small></span>${UI.switchHtml(`room-${c.id}`, inRoom.has(c.id))}</div>`).join('')
               : `<div class="item"><span class="label muted">등록한 인물이 없어.</span><button class="btn" data-act="goto-chars">캐릭터 등록</button></div>`}
           </div>
+          <div class="section-title">인원</div>
+          <div class="group">
+            <div class="item"><span class="label"><b>그릴 인원</b><small>기본값: ${esc({ auto: '자동', 1: '1명', 2: '최대 2명', 3: '최대 3명' }[s.scene.people] || '자동')}</small></span>${UI.seg('room-people', [['default', '기본값'], ['auto', '자동'], ['1', '1명'], ['2', '최대 2명']], String(room.people || 'default'))}</div>
+            <div class="item"><span class="label"><b>꼭 그릴 인물</b><small>인원을 1명으로 하면 이 인물을 그려 · 자동이면 AI가 장면의 중심 인물을 골라</small></span>
+              <select class="select" data-room="focus" style="width:auto">${UI.options([['', '자동'], ...s.characters.filter(c => inRoom.has(c.id)).map(c => [c.id, c.name])], room.focus || '')}</select></div>
+          </div>
           <div class="section-title">세계관 · 장소 메모</div>
           <div class="group"><div class="item col"><textarea class="ta" data-room="note" placeholder="예: 1920년대 경성. 주인공 집은 한옥, 카페는 서양식 인테리어.">${val(room.note)}</textarea></div></div>
           <p class="footnote">장면 분석 AI에게 참고로 줘. 프롬프트에 그대로 들어가지는 않아.</p>
@@ -181,6 +221,10 @@ const Settings = (() => {
         const ucOpts = [[2, '없음'], ...Object.keys(NAI.ucTable(s.model)).map(k => [k, NAI.UC_LABELS[k]])];
         const num = (k, label, step, sub = '') => `<div class="item"><span class="label"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span><input class="field num mono" type="number" step="${step}" data-k="gen.${k}" data-num value="${val(g[k])}"></div>`;
         return `
+          <div class="section-title">인원</div>
+          <div class="group">
+            <div class="item"><span class="label"><b>그릴 인원</b><small>1명이면 장면의 중심 인물 한 명만 solo로 그려. 채팅방마다 따로 정할 수도 있어.</small></span>${UI.seg('people', [['auto', '자동'], ['1', '1명'], ['2', '최대 2명'], ['3', '최대 3명']], String(s.scene.people))}</div>
+          </div>
           <div class="section-title">모델</div>
           <div class="group">
             <div class="item"><span class="label"><b>NovelAI 모델</b><small>${v5 ? 'V5: 캐릭터 칸이 베이스 예산과 따로 · 최대 22명' : 'V4.5: 베이스+캐릭터 합산 512토큰 · 최대 6명'}</small></span>
@@ -209,20 +253,44 @@ const Settings = (() => {
 
     // ── 저장 공간 ────────────────────────────────────────
     function storagePane() {
+        const f = Store.settings().folder;
         return `
+          <div class="section-title">내 컴퓨터 폴더</div>
+          <div class="group">
+            ${Folder.supported ? `
+            <div class="item"><span class="label"><b>폴더에도 저장</b><small>생성할 때마다 PNG를 이 폴더에 바로 써. NovelAI 메타데이터(프롬프트·시드)도 그대로 들어 있어.</small></span>${UI.switchHtml('folder-enabled', !!f.enabled)}</div>
+            <div class="item"><span class="label"><b>저장 폴더</b><small data-folder-status>확인 중…</small></span><button class="btn" data-act="folder-pick">폴더 선택…</button><button class="btn hidden" data-act="folder-grant">다시 허용</button></div>
+            <div class="item"><span class="label"><b>채팅방마다 하위 폴더</b><small>폴더/채팅방 이름/날짜_제목_시드.png</small></span>${UI.switchHtml('folder-perRoom', f.perRoom !== false)}</div>`
+            : `<div class="item"><span class="label"><b>이 브라우저는 폴더 지정을 지원하지 않아</b><small>Chrome · Edge · Whale 에서 쓸 수 있어. 대신 생성할 때마다 다운로드 폴더로 받을 수 있어.</small></span></div>`}
+            <div class="item"><span class="label"><b>생성할 때마다 다운로드</b><small>${Folder.supported ? '폴더 저장을 끈 경우에만 · ' : ''}브라우저 다운로드 폴더로 받아</small></span>${UI.switchHtml('folder-download', !!f.download)}</div>
+          </div>
+          <p class="footnote">채팅 안에 보이는 삽화는 폴더 저장과 상관없이 이 브라우저(IndexedDB)에 따로 보관돼. 브라우저를 다시 열면 폴더 권한을 한 번 더 물어볼 수 있어.</p>
+
           <div class="section-title">이 브라우저</div>
           <div class="group">
             <div class="item"><span class="label"><b>사용량</b></span><span class="muted" data-usage>계산 중…</span></div>
             <div class="item"><span class="label"><b>이 채팅방 삽화</b></span><span class="muted" data-room-count>…</span><button class="btn danger" data-act="clear-room">모두 지우기</button></div>
           </div>
-          <p class="footnote">삽화는 이 브라우저의 IndexedDB에 저장돼. 다른 기기와는 공유되지 않아.</p>
+          <p class="footnote">다른 기기와는 공유되지 않아.</p>
           <div class="section-title">정보</div>
           <div class="group">
             <div class="item"><span class="label"><b>Crack Painter</b><small>버전 ${esc(VERSION)}</small></span><a class="btn" href="https://github.com/w7k4x9/crack-painter" target="_blank" rel="noopener">GitHub</a></div>
           </div>`;
     }
 
+    async function fillFolder() {
+        const el = win?.el.querySelector('[data-folder-status]');
+        if (!el) return;
+        const st = await Folder.status();
+        const grant = win.el.querySelector('[data-act="folder-grant"]');
+        if (!st.set) { el.textContent = '아직 안 골랐어'; grant?.classList.add('hidden'); return; }
+        el.innerHTML = `<b style="font-weight:500;color:var(--text)">${esc(st.name)}</b> · ${st.permission === 'granted' ? '<span style="color:var(--green)">쓰기 허용됨</span>' : '<span style="color:var(--orange)">권한 다시 필요</span>'}`;
+        grant?.classList.toggle('hidden', st.permission === 'granted');
+        win.el.querySelector('[data-act="folder-pick"]').textContent = '변경…';
+    }
+
     async function fillStorage() {
+        fillFolder();
         const u = await Store.usage();
         const el = win?.el.querySelector('[data-usage]');
         const fmt = b => b > 1e9 ? `${(b / 1e9).toFixed(1)}GB` : `${Math.round(b / 1e6)}MB`;
@@ -253,8 +321,16 @@ const Settings = (() => {
         });
     }
 
+    let keyTimer = 0;
     function bind() {
         const el = win.el;
+        // 키는 입력하는 즉시 저장 (Esc로 창을 닫아도 남게)
+        el.addEventListener('input', ev => {
+            const t = ev.target;
+            if (!t.dataset.secret) return;
+            clearTimeout(keyTimer);
+            keyTimer = setTimeout(() => saveKey(t.dataset.secret, t.value), 400);
+        });
         el.addEventListener('click', async ev => {
             const navBtn = ev.target.closest('[data-pane]');
             if (navBtn) { pane = navBtn.dataset.pane; selChar = null; render(); return; }
@@ -268,6 +344,8 @@ const Settings = (() => {
                     if (name === 'provider') d.analyzer.provider = v;
                     else if (name === 'size') d.gen.size = v;
                     else if (name === 'qualityV5') d.gen.qualityV5 = v;
+                    else if (name === 'people') d.scene.people = v;
+                    else if (name === 'room-people' && Crack.roomId()) { const r = d.rooms[Crack.roomId()] = d.rooms[Crack.roomId()] || {}; r.people = v; }
                 });
                 render();
                 return;
@@ -276,6 +354,18 @@ const Settings = (() => {
             if (!btn || btn.closest('.lights')) return;
             const act = btn.dataset.act;
             const roomId = Crack.roomId();
+            if (act === 'folder-pick') {
+                try {
+                    await Folder.pick();
+                    Store.update(d => { d.folder.enabled = true; });
+                    render();
+                    UI.toast({ title: '저장 폴더를 정했어', kind: 'ok', body: '다음 생성부터 이 폴더에도 저장돼.' });
+                } catch (e) {
+                    if (e?.name !== 'AbortError') App.reportError(e, '폴더를 열지 못했어');
+                }
+                return;
+            }
+            if (act === 'folder-grant') { await Folder.prime(true); fillFolder(); return; }
             if (act === 'test-nai') testNai();
             else if (act === 'test-llm') testLlm();
             else if (act === 'preset-new') {
@@ -339,8 +429,8 @@ render();
             const t = ev.target;
             const roomId = Crack.roomId();
             if (t.dataset.secret) {
-                Store.setSecret(t.dataset.secret, t.value);
-                UI.toast({ title: '키를 저장했어', kind: 'ok' });
+                clearTimeout(keyTimer);
+                saveKey(t.dataset.secret, t.value);
             } else if (t.dataset.k) {
                 const v = t.dataset.num !== undefined ? Number(t.value) : t.value;
                 Store.update(d => setPath(d, t.dataset.k, v));
@@ -354,7 +444,11 @@ render();
                 Store.update(d => { d.rooms[roomId] = { ...(d.rooms[roomId] || {}), [t.dataset.room]: t.value }; });
             } else if (t.dataset.sw) {
                 const sw = t.dataset.sw;
-                if (sw === 'qualityV45') Store.update(d => { d.gen.qualityV45 = t.checked; });
+                if (sw.startsWith('folder-')) {
+                    const key = sw.slice(7);
+                    Store.update(d => { d.folder[key] = t.checked; });
+                    if (key === 'enabled' && t.checked) Folder.status().then(st => { if (!st.set) win?.el.querySelector('[data-act="folder-pick"]')?.click(); });
+                } else if (sw === 'qualityV45') Store.update(d => { d.gen.qualityV45 = t.checked; });
                 else if (sw === 'useCoords') Store.update(d => { d.gen.useCoords = t.checked; });
                 else if (sw === 'char-room' || sw.startsWith('room-')) {
                     const id = sw === 'char-room' ? selChar : sw.slice(5);

@@ -262,6 +262,7 @@ const NAI = (() => {
         if (!apiKey) throw Object.assign(new Error('NovelAI 키가 없어. 설정 → 연결에서 넣어줘.'), { code: 'NO_KEY', pane: 'api' });
         const useSeed = seed === '' || seed == null || !Number.isFinite(Number(seed)) ? randomSeed() : Number(seed);
         const payload = buildPayload(assembled, gen, useSeed);
+        validate(payload);
         const isV5 = assembled.family === 'v5';
         let data = payload;
         if (isV5) {
@@ -271,6 +272,7 @@ const NAI = (() => {
         const buffer = await Net.request({
             method: 'POST',
             url: 'https://image.novelai.net/ai/generate-image',
+            onError: err => { err.diag = diagnose(payload, assembled); },
             headers: isV5 ? { Authorization: `Bearer ${apiKey}` } : { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             data,
             raw: isV5,
@@ -279,6 +281,33 @@ const NAI = (() => {
             signal
         });
         return { blob: extractImage(buffer), seed: useSeed, payload };
+    }
+
+    // 서버가 400으로 거부할 값을 미리 잡는다
+    function validate(payload) {
+        const p = payload.parameters;
+        const bad = [];
+        if (!Number.isInteger(p.steps) || p.steps < 1 || p.steps > 50) bad.push(`스텝 ${p.steps} (1~50)`);
+        if (!Number.isFinite(p.scale) || p.scale < 0 || p.scale > 10) bad.push(`Guidance ${p.scale} (0~10)`);
+        if (!Number.isFinite(p.cfg_rescale) || p.cfg_rescale < 0 || p.cfg_rescale > 1) bad.push(`Rescale ${p.cfg_rescale} (0~1)`);
+        if (p.width % 64 || p.height % 64) bad.push(`크기 ${p.width}×${p.height}`);
+        if (!String(payload.input || '').trim()) bad.push('베이스 프롬프트가 비어 있음');
+        if (bad.length) throw Object.assign(new Error(`생성 옵션 값이 잘못됐어: ${bad.join(', ')}. 설정 → 생성 옵션에서 고쳐줘.`), { pane: 'gen' });
+    }
+
+    function diagnose(payload, assembled) {
+        const p = payload.parameters;
+        const caps = p.v4_prompt.caption;
+        return [
+            `model: ${payload.model} (params_version ${p.params_version})`,
+            `size: ${p.width}x${p.height} · steps ${p.steps} · scale ${p.scale} · rescale ${p.cfg_rescale} · ${p.sampler}/${p.noise_schedule}`,
+            `uc preset: ${p.ucPresetId ?? p.ucPreset} · coords: ${p.v4_prompt.use_coords} · characters: ${caps.char_captions.length}`,
+            `tokens(추정): base ${assembled.budget.base} · chars ${assembled.budget.chars} / ${assembled.budget.limit}`,
+            '',
+            `[base_caption] ${caps.base_caption}`,
+            ...caps.char_captions.map((c, i) => `[char ${i}] (${c.centers[0].x},${c.centers[0].y}) ${c.char_caption}`),
+            `[negative] ${p.negative_prompt}`
+        ].join('\n');
     }
 
     return { SIZES, DEFAULT_GEN, UC_LABELS, V5_QUALITY, ucTable, ucPresetFor, mergeNegative, buildPayload, extractImage, generate, randomSeed };

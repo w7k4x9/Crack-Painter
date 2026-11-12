@@ -87,12 +87,21 @@ test('꺼진 캐릭터와 최대 인원 제한', () => {
     st.chars[1].enabled = false;
     const a = Core.assemble(st, V5);
     assert.equal(a.chars.length, 1);
-    assert.match(a.base, /, 1girl, /);
+    assert.match(a.base, /, 1girl, solo, /);
     const many = sample();
     many.chars = Array.from({ length: 8 }, (_, i) => ({ id: `x${i}`, name: `n${i}`, look: 'girl', action: '' }));
     const b = Core.assemble(many, V45);
     assert.equal(b.chars.length, 6);
     assert.equal(b.count, '6+girls');
+});
+
+test('인물이 한 명이면 solo 가 붙고, AI가 쓴 solo 는 중복되지 않는다', () => {
+    const st = sample();
+    st.chars = [st.chars[0]];
+    st.scene.tags = 'solo, indoors';
+    const a = Core.assemble(st, V5);
+    assert.equal(a.base.match(/solo/g).length, 1);
+    assert.match(a.base, /artist:zzz, 1girl, solo, indoors/);
 });
 
 test('위치 → center, V4.5 격자', () => {

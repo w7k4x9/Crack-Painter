@@ -50,9 +50,31 @@ const App = (() => {
             UI.toast({ title: '취소했어', kind: 'info' });
             return;
         }
-        console.error('[Crack Painter]', err);
-        const actions = err?.pane ? [{ label: '설정 열기', primary: true, onClick: () => Settings.open(err.pane) }] : [];
+        console.error('[Crack Painter]', err, err?.diag || '');
+        const actions = [];
+        if (err?.pane) actions.push({ label: '설정 열기', primary: true, onClick: () => Settings.open(err.pane) });
+        if (err?.diag || err?.body) actions.push({ label: '자세히', onClick: () => showDetail(title, err) });
         UI.toast({ title, body: err?.message || String(err), kind: 'err', actions, timeout: actions.length ? 0 : 8000 });
+    }
+
+    // 오류 자세히: 서버 원문 + 보낸 요청 요약 (키는 넣지 않음)
+    function showDetail(title, err) {
+        const text = [
+            `[${err.service || '오류'}] HTTP ${err.status || '-'}`,
+            err.message,
+            '',
+            '── 서버 응답 원문 ──',
+            String(err.body || '(없음)').slice(0, 3000),
+            ...(err.diag ? ['', '── 보낸 요청 요약 ──', err.diag] : [])
+        ].join('\n');
+        const w = UI.openWindow({ id: 'error-detail', className: 'detail', title: '오류 자세히', subtitle: title });
+        w.body.innerHTML = `<div class="scroll" style="flex:1;padding:14px 16px;min-height:0"><pre style="margin:0;white-space:pre-wrap;word-break:break-word;font:11.5px/1.55 var(--mono)">${UI.esc(text)}</pre></div>
+          <div class="row" style="padding:10px 14px;border-top:.5px solid var(--sep-strong);background:var(--bar)"><span class="muted tiny grow">API 키는 들어 있지 않아.</span><button class="btn primary" data-copy>복사</button></div>`;
+        w.body.style.display = 'flex';
+        w.body.style.flexDirection = 'column';
+        w.body.querySelector('[data-copy]').onclick = async ev => {
+            try { await navigator.clipboard.writeText(text); ev.target.textContent = '복사했어'; } catch (_) { ev.target.textContent = '복사 실패'; }
+        };
     }
 
     function confirmToast(title, body, okLabel = '확인', danger = false) {
@@ -68,10 +90,31 @@ const App = (() => {
     }
 
     // ── 분석 ─────────────────────────────────────────────
+    // 그릴 인원: 방 설정 > 전역 설정. 1명일 때 그릴 인물(focus)은 방 설정에서 고른다.
+    function peopleFor(roomId, s = Store.settings()) {
+        const room = s.rooms?.[roomId] || {};
+        const people = room.people && room.people !== 'default' ? room.people : s.scene.people;
+        const chars = Store.roomChars(roomId, s);
+        const focus = chars.find(c => c.id === room.focus) || null;
+        return { people: people === 'auto' ? 0 : Number(people) || 0, focus, chars };
+    }
+
+    function limitPeople(state, people, focus) {
+        if (!people) return state;
+        if (focus) {
+            const i = state.chars.findIndex(c => c.id === focus.id);
+            if (i > 0) state.chars.unshift(...state.chars.splice(i, 1));
+        }
+        state.chars.forEach((c, i) => { if (i >= people) c.enabled = false; });
+        return state;
+    }
+
     function analysisInput(markdown, { fixedParagraph, request } = {}) {
         const s = Store.settings();
         const roomId = Crack.roomId();
+        const { people, focus } = peopleFor(roomId, s);
         return {
+            people, focus,
             characters: Store.roomChars(roomId, s),
             note: s.rooms?.[roomId]?.note || '',
             context: Crack.contextBefore(markdown, Number(s.ui.contextTurns) || 4),
@@ -85,8 +128,14 @@ const App = (() => {
         const s = Store.settings();
         const input = analysisInput(markdown, opts);
         if (!input.paragraphs.length) throw new Error('이 답변에서 문단을 찾지 못했어.');
+        // 분석 AI 없이: 등록 인물만 넣은 빈 장면. 장면 태그는 스튜디오에서 직접 쓴다.
+        if (s.analyzer.provider === 'none') {
+            const picks = input.focus ? [input.focus] : input.characters;
+            const plan = { insertAfterParagraph: input.paragraphs.length - 1, characters: picks.map(c => ({ id: c.id, name: c.name })) };
+            return limitPeople(Core.planToState(plan, input.characters, s.style), input.people || 1, input.focus);
+        }
         const plan = await LLM.analyze(input, { settings: s, secrets: Store.secrets(), signal });
-        const state = Core.sanitizeAi(Core.planToState(plan, input.characters, s.style));
+        const state = limitPeople(Core.sanitizeAi(Core.planToState(plan, input.characters, s.style)), input.people, input.focus);
         state.paragraph = Math.min(state.paragraph, input.paragraphs.length - 1);
         if (Number.isInteger(opts.fixedParagraph)) state.paragraph = opts.fixedParagraph;
         return state;
@@ -99,6 +148,7 @@ const App = (() => {
         if (!assembled.base && !assembled.chars.length) throw new Error('프롬프트가 비어 있어.');
         const { blob, seed } = await NAI.generate({ assembled, gen, apiKey: sec.naiKey, seed: gen.seed, signal });
         const imageId = await Store.putImage(blob);
+        Folder.save(blob, { title: state.title, seed }).catch(() => {});
         const rec = (await Store.getRecord(roomId, messageKey)) || { roomId, messageKey, history: [], index: 0 };
         rec.paragraph = state.paragraph ?? rec.paragraph ?? 0;
         rec.title = state.title || rec.title || '';
@@ -132,6 +182,7 @@ const App = (() => {
         const roomId = Crack.roomId();
         const messageKey = Crack.messageKey(markdown);
         if (running.has(messageKey)) return UI.toast({ title: '이미 만들고 있어', body: '이 답변의 삽화를 생성 중이야.' });
+        Folder.prime();
         const controller = new AbortController();
         running.set(messageKey, { controller });
         markButtons(messageKey, true);
@@ -159,6 +210,7 @@ const App = (() => {
         const rec = (await records(roomId)).get(messageKey);
         const h = rec?.history?.[rec.index];
         if (!h) return;
+        Folder.prime();
         const controller = new AbortController();
         running.set(messageKey, { controller });
         setFigureBusy(messageKey, true);
@@ -406,6 +458,7 @@ const App = (() => {
     let lastPath = location.pathname;
     function start() {
         UI.injectPageStyle();
+        Folder.load();
         new MutationObserver(muts => {
             for (const m of muts) {
                 const t = m.target;

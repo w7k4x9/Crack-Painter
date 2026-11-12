@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Crack Painter
 // @namespace    https://github.com/w7k4x9/crack-painter
-// @version      1.0.0
+// @version      1.1.0
 // @description  크랙(crack.wrtn.ai) 채팅 장면을 NovelAI 삽화로. 작가·화풍은 베이스, 인물은 캐릭터 칸으로 정확히 나눠 보냄.
 // @author       w7k4x9
 // @match        https://crack.wrtn.ai/*
@@ -26,9 +26,9 @@
 (function () {
     'use strict';
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
-const UI_CSS = "/* ── Crack Painter · macOS 스타일 (Shadow DOM 안) ───────────── */\n:host { all: initial; }\n.root {\n  --font: -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Apple SD Gothic Neo\", \"Pretendard Variable\", Pretendard, \"Noto Sans KR\", system-ui, sans-serif;\n  --mono: ui-monospace, \"SF Mono\", Menlo, Consolas, monospace;\n  --accent: #007aff;\n  --accent-press: #0062cc;\n  --accent-soft: rgba(0,122,255,.14);\n  --ring: rgba(0,122,255,.38);\n  --text: #1d1d1f;\n  --text2: #6e6e73;\n  --text3: #a1a1a6;\n  --win: rgba(246,246,248,.92);\n  --win-solid: #f6f6f8;\n  --bar: rgba(236,236,240,.78);\n  --side: rgba(232,232,237,.72);\n  --group: #ffffff;\n  --field: #ffffff;\n  --btn: #ffffff;\n  --btn-hover: #f4f4f6;\n  --sep: rgba(0,0,0,.09);\n  --sep-strong: rgba(0,0,0,.16);\n  --track: rgba(0,0,0,.065);\n  --hover: rgba(0,0,0,.045);\n  --shadow: 0 0 0 .5px rgba(0,0,0,.22), 0 24px 70px rgba(0,0,0,.28), 0 4px 14px rgba(0,0,0,.12);\n  --ctl-shadow: 0 .5px 1.5px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.08);\n  --red: #ff3b30; --orange: #ff9500; --green: #28cd41; --yellow: #ffcc00; --purple: #af52de; --teal: #30b0c7; --pink: #ff2d55;\n  --stage: #e9e9ee;\n  font-family: var(--font);\n  font-size: 13px;\n  line-height: 1.38;\n  color: var(--text);\n  -webkit-font-smoothing: antialiased;\n  letter-spacing: -.003em;\n}\n.root.dark {\n  --accent: #0a84ff;\n  --accent-press: #409cff;\n  --accent-soft: rgba(10,132,255,.22);\n  --ring: rgba(10,132,255,.5);\n  --text: #f5f5f7;\n  --text2: #a1a1a6;\n  --text3: #6e6e73;\n  --win: rgba(36,36,40,.9);\n  --win-solid: #242428;\n  --bar: rgba(44,44,48,.82);\n  --side: rgba(40,40,44,.7);\n  --group: rgba(255,255,255,.055);\n  --field: rgba(255,255,255,.07);\n  --btn: rgba(255,255,255,.12);\n  --btn-hover: rgba(255,255,255,.17);\n  --sep: rgba(255,255,255,.08);\n  --sep-strong: rgba(255,255,255,.16);\n  --track: rgba(255,255,255,.09);\n  --hover: rgba(255,255,255,.06);\n  --shadow: 0 0 0 .5px rgba(255,255,255,.12), 0 0 0 1px rgba(0,0,0,.6), 0 24px 70px rgba(0,0,0,.55);\n  --ctl-shadow: 0 0 0 .5px rgba(255,255,255,.06), 0 1px 1px rgba(0,0,0,.3);\n  --red: #ff453a; --orange: #ff9f0a; --green: #32d74b; --yellow: #ffd60a; --purple: #bf5af2; --teal: #40c8e0; --pink: #ff375f;\n  --stage: #1b1b1e;\n}\n*, *::before, *::after { box-sizing: border-box; }\nbutton, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }\nsvg { display: block; }\n.hidden { display: none !important; }\n\n/* ── 창 ─────────────────────────────────────────────── */\n.layer { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; }\n.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.18); pointer-events: auto; animation: fade .18s ease; }\n.root.dark .scrim { background: rgba(0,0,0,.35); }\n.win {\n  position: fixed; pointer-events: auto;\n  display: flex; flex-direction: column;\n  background: var(--win);\n  -webkit-backdrop-filter: blur(40px) saturate(180%);\n  backdrop-filter: blur(40px) saturate(180%);\n  border-radius: 12px;\n  box-shadow: var(--shadow);\n  overflow: hidden;\n  animation: pop .22s cubic-bezier(.2,.9,.3,1.1);\n  min-width: 320px; min-height: 240px;\n}\n.win.zoomed { inset: 12px !important; width: auto !important; height: auto !important; }\n.win.inactive .lights i { background: var(--track); border-color: transparent; }\n@keyframes pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }\n@keyframes fade { from { opacity: 0; } }\n\n.titlebar {\n  flex: none; height: 52px;\n  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;\n  padding: 0 14px 0 16px;\n  background: var(--bar);\n  border-bottom: .5px solid var(--sep-strong);\n  user-select: none; cursor: default;\n  touch-action: none;\n}\n.titlebar.sidebar-bar { background: transparent; border-bottom: 0; }\n.titlebar .left, .titlebar .right { display: flex; align-items: center; gap: 8px; min-width: 0; }\n.titlebar .right .select { max-width: 170px; }\n.titlebar .right { justify-content: flex-end; }\n.title { text-align: center; min-width: 0; }\n.title b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.title small { display: block; font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }\n.lights { display: flex; gap: 8px; margin-right: 6px; }\n.lights i {\n  width: 12px; height: 12px; border-radius: 50%; display: grid; place-items: center;\n  border: .5px solid rgba(0,0,0,.18); cursor: pointer; position: relative;\n}\n.lights i:nth-child(1) { background: #ff5f57; }\n.lights i:nth-child(2) { background: #febc2e; }\n.lights i:nth-child(3) { background: #28c840; }\n.lights i svg { width: 8px; height: 8px; opacity: 0; color: rgba(0,0,0,.6); }\n.lights:hover i svg { opacity: 1; }\n.lights i.off { background: var(--track) !important; cursor: default; }\n.lights i.off svg { display: none; }\n\n/* ── 컨트롤 ─────────────────────────────────────────── */\n.btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: 5px;\n  height: 24px; padding: 0 10px; border-radius: 6px; border: 0;\n  background: var(--btn); box-shadow: var(--ctl-shadow);\n  font-size: 13px; font-weight: 500; white-space: nowrap; cursor: default;\n}\n.btn:hover { background: var(--btn-hover); }\n.btn:active { filter: brightness(.94); }\n.btn:disabled { opacity: .45; pointer-events: none; }\n.btn svg { width: 14px; height: 14px; }\n.btn.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent)); color: #fff; box-shadow: 0 .5px 1px rgba(0,0,0,.25), inset 0 .5px 0 rgba(255,255,255,.25); }\n.btn.primary:hover { background: var(--accent); }\n.btn.danger { color: var(--red); }\n.btn.lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }\n.btn.ghost { background: transparent; box-shadow: none; }\n.btn.ghost:hover { background: var(--hover); }\n.icon-btn {\n  width: 28px; height: 28px; border-radius: 6px; border: 0; background: transparent;\n  display: inline-grid; place-items: center; color: var(--text2); cursor: default;\n}\n.icon-btn:hover { background: var(--hover); color: var(--text); }\n.icon-btn svg { width: 16px; height: 16px; }\n.icon-btn.sm { width: 22px; height: 22px; } .icon-btn.sm svg { width: 13px; height: 13px; }\n.kbd { font-size: 11px; opacity: .75; margin-left: 2px; }\n\n.field, .ta, .select {\n  width: 100%; border: 0; outline: 0;\n  background: var(--field); box-shadow: var(--ctl-shadow);\n  border-radius: 6px; padding: 4px 8px; min-height: 24px;\n  transition: box-shadow .12s;\n}\n.field:focus, .ta:focus, .select:focus { box-shadow: 0 0 0 .5px var(--accent), 0 0 0 3.5px var(--ring); }\n.field::placeholder, .ta::placeholder { color: var(--text3); }\n.ta { display: block; resize: vertical; min-height: 54px; padding: 6px 8px; font-size: 12.5px; line-height: 1.45; font-family: var(--font); }\n.ta.mono, .field.mono { font-family: var(--mono); font-size: 12px; }\n.ta.short { min-height: 38px; }\n.select {\n  appearance: none; -webkit-appearance: none; padding-right: 26px; cursor: default; height: 24px; min-height: 0;\n  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1 4.5 4 1.5l3 3M1 7.5l3 3 3-3' fill='none' stroke='%23888' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");\n  background-repeat: no-repeat; background-position: right 8px center;\n}\n.root.dark .select option { background: #2c2c30; }\n.field.num { width: 72px; text-align: right; font-variant-numeric: tabular-nums; }\n\n.seg { display: inline-flex; background: var(--track); border-radius: 7px; padding: 2px; gap: 2px; }\n.seg button {\n  border: 0; background: transparent; height: 20px; padding: 0 10px; border-radius: 5px;\n  font-size: 12px; font-weight: 500; color: var(--text); cursor: default; white-space: nowrap;\n}\n.seg button.on { background: var(--btn); box-shadow: var(--ctl-shadow); }\n.root.dark .seg button.on { background: rgba(255,255,255,.2); }\n.seg.sm button { padding: 0 7px; font-size: 11px; height: 18px; }\n\n.switch { position: relative; width: 32px; height: 19px; flex: none; }\n.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: default; z-index: 1; }\n.switch span { position: absolute; inset: 0; border-radius: 99px; background: var(--track); box-shadow: inset 0 0 0 .5px var(--sep); transition: background .2s; }\n.switch span::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s cubic-bezier(.3,.7,.4,1.2); }\n.switch input:checked + span { background: var(--accent); }\n.switch input:checked + span::after { transform: translateX(13px); }\n\n.badge { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 5px; font-size: 10.5px; font-weight: 600; background: var(--track); color: var(--text2); white-space: nowrap; }\n.badge.blue { background: var(--accent-soft); color: var(--accent); }\n.badge.orange { background: color-mix(in srgb, var(--orange) 18%, transparent); color: var(--orange); }\n.badge.green { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }\n.badge.red { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }\n.muted { color: var(--text2); }\n.tiny { font-size: 11px; }\n.grow { flex: 1; }\n.row { display: flex; align-items: center; gap: 8px; }\n.stack { display: flex; flex-direction: column; gap: 6px; }\n\n/* 스크롤 */\n.scroll { overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--sep-strong) transparent; }\n.scroll::-webkit-scrollbar { width: 10px; height: 10px; }\n.scroll::-webkit-scrollbar-thumb { background: var(--sep-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }\n\n/* ── 그룹 리스트 (시스템 설정 스타일) ─────────────────── */\n.section-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: none; margin: 18px 4px 6px; display: flex; align-items: center; gap: 6px; }\n.section-title:first-child { margin-top: 0; }\n.section-title .grow + * { font-weight: 500; }\n.group { background: var(--group); border-radius: 10px; box-shadow: 0 0 0 .5px var(--sep); }\n.group > .item { padding: 9px 12px; display: flex; align-items: center; gap: 10px; min-height: 40px; position: relative; }\n.group > .item + .item::before { content: ''; position: absolute; top: 0; left: 12px; right: 0; border-top: .5px solid var(--sep); }\n.group > .item.col { flex-direction: column; align-items: stretch; gap: 6px; }\n.item .label { flex: 1; min-width: 0; }\n.item .label b { font-weight: 500; display: block; }\n.item .label small { display: block; color: var(--text2); font-size: 11.5px; margin-top: 1px; }\n.footnote { color: var(--text2); font-size: 11.5px; margin: 6px 4px 0; line-height: 1.45; }\n.footnote code, .help code { font-family: var(--mono); font-size: 11px; background: var(--track); padding: 0 4px; border-radius: 4px; }\n\n/* ── 스튜디오 ─────────────────────────────────────── */\n.studio { width: min(1180px, calc(100vw - 32px)); height: min(820px, calc(100vh - 32px)); }\n.studio .body { flex: 1; display: grid; grid-template-columns: minmax(300px, 1fr) minmax(380px, 460px); min-height: 0; }\n.stage { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--stage); border-right: .5px solid var(--sep-strong); }\n.canvas { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; overflow: hidden; }\n.canvas img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,.18), 0 0 0 .5px var(--sep); cursor: zoom-in; }\n.placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text3); text-align: center; max-width: 280px; }\n.placeholder svg { width: 44px; height: 44px; opacity: .6; }\n.placeholder b { color: var(--text2); font-weight: 600; font-size: 14px; }\n.busy {\n  position: absolute; inset: 0; display: grid; place-items: center;\n  background: color-mix(in srgb, var(--stage) 55%, transparent);\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n}\n.busy .card { background: var(--win); border-radius: 14px; box-shadow: var(--shadow); padding: 18px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 220px; }\n.spinner { width: 22px; height: 22px; position: relative; }\n.spinner i { position: absolute; left: 10px; top: 1px; width: 2.2px; height: 6px; border-radius: 2px; background: var(--text2); transform-origin: 1.1px 10px; animation: spin 1s linear infinite; }\n@keyframes spin { 0% { opacity: 1; } 100% { opacity: .15; } }\n.film { flex: none; display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; border-top: .5px solid var(--sep); align-items: center; background: var(--bar); }\n.film .thumb { flex: none; width: 46px; height: 46px; border-radius: 7px; overflow: hidden; border: 0; padding: 0; background: var(--track); box-shadow: 0 0 0 .5px var(--sep); cursor: default; position: relative; }\n.film .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }\n.film .thumb.on { box-shadow: 0 0 0 2px var(--accent); }\n.film .thumb .pin { position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; }\n.film .thumb .pin svg { width: 8px; height: 8px; }\n.film .tools { display: flex; gap: 2px; margin-left: auto; }\n\n.inspector { display: flex; flex-direction: column; min-height: 0; background: var(--win); }\n.inspector .content { flex: 1; padding: 14px 16px 24px; }\n.inspector .footer { flex: none; border-top: .5px solid var(--sep-strong); background: var(--bar); padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }\n\n.moment { font-size: 12.5px; color: var(--text2); padding: 2px 4px 0; }\n.slot { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 7px; }\n.slot + .slot { border-top: .5px solid var(--sep); }\n.slot-head { display: flex; align-items: center; gap: 7px; min-height: 22px; }\n.slot-head .name { font-weight: 600; font-size: 13px; }\n.slot-head .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }\n.slot-head .tok { margin-left: auto; font-variant-numeric: tabular-nums; }\n.slot .sub { font-size: 11px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; }\n.slot.off > :not(.slot-head) { display: none; }\n.slot.off .name { color: var(--text3); }\n.where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text2); font-weight: 600; letter-spacing: .02em; }\n.where svg { width: 11px; height: 11px; }\n\n.notes { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }\n.note { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; padding: 8px 10px; border-radius: 8px; background: var(--group); box-shadow: 0 0 0 .5px var(--sep); }\n.note svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--accent); }\n.note.warn svg { color: var(--orange); }\n.note.error svg { color: var(--red); }\n\ndetails.raw { margin-top: 12px; }\ndetails.raw summary { cursor: default; font-size: 11px; font-weight: 600; color: var(--text2); list-style: none; display: flex; align-items: center; gap: 4px; padding: 4px; }\ndetails.raw summary::-webkit-details-marker { display: none; }\ndetails.raw summary svg { width: 10px; height: 10px; transition: transform .15s; }\ndetails.raw[open] summary svg { transform: rotate(90deg); }\ndetails.raw pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 11px; line-height: 1.5; background: var(--group); box-shadow: 0 0 0 .5px var(--sep); border-radius: 8px; padding: 10px 12px; max-height: 320px; overflow: auto; }\ndetails.raw pre .k { color: var(--purple); }\n\n.meter { display: flex; flex-direction: column; gap: 4px; }\n.meter .bar { height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; display: flex; }\n.meter .bar i { height: 100%; display: block; }\n.meter .bar i + i { box-shadow: -1px 0 0 var(--win-solid); }\n.meter .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }\n.meter .legend span { display: inline-flex; align-items: center; gap: 4px; }\n.meter .legend span::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }\n.meter .legend .total { margin-left: auto; font-weight: 600; color: var(--text); }\n.meter.over .legend .total { color: var(--red); }\n.c-style { --c: var(--purple); } .c-scene { --c: var(--accent); }\n.c-0 { --c: var(--orange); } .c-1 { --c: var(--green); } .c-2 { --c: var(--pink); } .c-3 { --c: var(--teal); } .c-4 { --c: var(--yellow); } .c-5 { --c: #8e8e93; }\n\n/* 팝오버 메뉴 */\n.menu { position: fixed; pointer-events: auto; min-width: 200px; max-width: 320px; max-height: 60vh; overflow: auto; padding: 5px; border-radius: 9px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); z-index: 5; animation: fade .1s; }\n.menu button { display: flex; width: 100%; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent; padding: 4px 10px; border-radius: 5px; font-size: 13px; cursor: default; min-height: 24px; }\n.menu button:hover { background: var(--accent); color: #fff; }\n.menu button:hover small { color: rgba(255,255,255,.8); }\n.menu button small { color: var(--text2); font-size: 11px; display: block; }\n.menu hr { border: 0; border-top: .5px solid var(--sep-strong); margin: 4px 8px; }\n.menu .hd { font-size: 11px; font-weight: 600; color: var(--text2); padding: 4px 10px 2px; }\n\n/* ── 설정 ─────────────────────────────────────────── */\n.settings { width: min(860px, calc(100vw - 32px)); height: min(640px, calc(100vh - 32px)); }\n.settings .body { flex: 1; display: grid; grid-template-columns: 210px 1fr; min-height: 0; }\n.settings .side { background: var(--side); border-right: .5px solid var(--sep-strong); display: flex; flex-direction: column; min-height: 0; }\n.settings .side .titlebar { background: transparent; border: 0; grid-template-columns: auto 1fr; }\n.settings .nav { padding: 4px 10px 12px; display: flex; flex-direction: column; gap: 1px; }\n.settings .nav button { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; height: 30px; padding: 0 8px; border-radius: 6px; font-size: 13px; text-align: left; cursor: default; }\n.settings .nav button:hover { background: var(--hover); }\n.settings .nav button.on { background: var(--accent); color: #fff; }\n.settings .nav .ic { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; color: #fff; flex: none; }\n.settings .nav .ic svg { width: 12px; height: 12px; }\n.settings .main { display: flex; flex-direction: column; min-height: 0; }\n.settings .main .titlebar { grid-template-columns: auto 1fr auto; }\n.settings .main .titlebar .title { text-align: left; }\n.settings .main .titlebar .title b { font-size: 15px; font-weight: 700; }\n.settings .pane { flex: 1; padding: 6px 24px 28px; }\n.side .search { margin: 0 10px 8px; }\n.char-list { display: flex; flex-direction: column; }\n.char-list button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; text-align: left; padding: 8px 12px; cursor: default; position: relative; }\n.char-list button + button::before { content: ''; position: absolute; top: 0; left: 46px; right: 0; border-top: .5px solid var(--sep); }\n.char-list button:hover { background: var(--hover); }\n.char-list button:first-child { border-radius: 10px 10px 0 0; } .char-list button:last-child { border-radius: 0 0 10px 10px; }\n.avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 12px; flex: none; }\n.char-list .meta { flex: 1; min-width: 0; }\n.char-list .meta b { display: block; font-weight: 500; }\n.char-list .meta small { display: block; color: var(--text2); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.chev { width: 8px; height: 13px; color: var(--text3); flex: none; }\n.kv { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; }\n\n/* ── 알림 (macOS Notification) ───────────────────── */\n.toasts { position: fixed; top: 14px; right: 14px; display: flex; flex-direction: column; gap: 8px; width: min(356px, calc(100vw - 28px)); pointer-events: none; z-index: 10; }\n.toast {\n  pointer-events: auto; display: flex; gap: 10px; align-items: flex-start;\n  padding: 11px 12px; border-radius: 16px;\n  background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);\n  box-shadow: var(--shadow);\n  animation: slide .32s cubic-bezier(.2,.9,.3,1.1);\n}\n.toast.leaving { animation: out .2s ease forwards; }\n@keyframes slide { from { opacity: 0; transform: translateX(30px); } }\n@keyframes out { to { opacity: 0; transform: translateX(30px); } }\n.toast .app { width: 32px; height: 32px; border-radius: 8px; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }\n.toast .app svg { width: 18px; height: 18px; }\n.toast .app.err { background: linear-gradient(135deg, #ff6a5c, #ff3b30); }\n.toast .app.ok { background: linear-gradient(135deg, #5ee07a, #28c840); }\n.toast .txt { flex: 1; min-width: 0; }\n.toast .txt b { display: block; font-size: 13px; font-weight: 600; }\n.toast .txt p { margin: 1px 0 0; font-size: 12.5px; color: var(--text2); word-break: break-word; }\n.toast .acts { display: flex; gap: 6px; margin-top: 8px; }\n.toast .prog { height: 3px; border-radius: 99px; background: var(--track); overflow: hidden; margin-top: 8px; }\n.toast .prog i { display: block; height: 100%; width: 40%; background: var(--accent); border-radius: 99px; animation: indet 1.2s ease-in-out infinite; }\n@keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }\n.toast .x { opacity: 0; transition: opacity .15s; margin: -4px -4px 0 0; }\n.toast:hover .x { opacity: 1; }\n\n/* 미니 독 (노란 버튼으로 숨긴 창) */\n.dock { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); pointer-events: auto; animation: pop .2s; }\n.dock button { border: 0; background: transparent; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 11px; cursor: default; font-size: 12.5px; font-weight: 500; }\n.dock button:hover { background: var(--hover); }\n.dock .app { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }\n.dock .app svg { width: 15px; height: 15px; }\n\n/* 라이트박스 */\n.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: grid; place-items: center; pointer-events: auto; animation: fade .15s; cursor: zoom-out; }\n.lightbox img { max-width: 94vw; max-height: 94vh; border-radius: 6px; }\n\n/* ── 좁은 화면: 시트처럼 꽉 채움 ─────────────────── */\n@media (max-width: 760px) {\n  .win { inset: 0 !important; width: auto !important; height: auto !important; border-radius: 0; }\n  .studio .body { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 42%) 1fr; }\n  .stage { border-right: 0; border-bottom: .5px solid var(--sep-strong); }\n  .settings .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }\n  .settings .side { border-right: 0; border-bottom: .5px solid var(--sep-strong); }\n  .settings .side .titlebar { display: none; }\n  .settings .nav { flex-direction: row; overflow-x: auto; padding: 8px; }\n  .settings .nav button { flex: none; }\n  .settings .pane { padding: 6px 14px 24px; }\n  .kv { grid-template-columns: 1fr; gap: 4px; }\n  .titlebar { padding: 0 10px; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; }\n  .titlebar .title { text-align: left; }\n  .titlebar .title small { display: none; }\n  .titlebar .right .select { max-width: 116px; }\n  .lights { margin-right: 0; }\n  .slot-head .muted.tiny { display: none; }\n  .kbd { display: none; }\n  .inspector .content { padding: 12px 12px 20px; }\n}\n";
+const UI_CSS = "/* ── Crack Painter · macOS 스타일 (Shadow DOM 안) ───────────── */\n:host { all: initial; }\n.root {\n  --font: -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Apple SD Gothic Neo\", \"Pretendard Variable\", Pretendard, \"Noto Sans KR\", system-ui, sans-serif;\n  --mono: ui-monospace, \"SF Mono\", Menlo, Consolas, monospace;\n  --accent: #007aff;\n  --accent-press: #0062cc;\n  --accent-soft: rgba(0,122,255,.14);\n  --ring: rgba(0,122,255,.38);\n  --text: #1d1d1f;\n  --text2: #6e6e73;\n  --text3: #a1a1a6;\n  --win: rgba(246,246,248,.92);\n  --win-solid: #f6f6f8;\n  --bar: rgba(236,236,240,.78);\n  --side: rgba(232,232,237,.72);\n  --group: #ffffff;\n  --field: #ffffff;\n  --btn: #ffffff;\n  --btn-hover: #f4f4f6;\n  --sep: rgba(0,0,0,.09);\n  --sep-strong: rgba(0,0,0,.16);\n  --track: rgba(0,0,0,.065);\n  --hover: rgba(0,0,0,.045);\n  --shadow: 0 0 0 .5px rgba(0,0,0,.22), 0 24px 70px rgba(0,0,0,.28), 0 4px 14px rgba(0,0,0,.12);\n  --ctl-shadow: 0 .5px 1.5px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.08);\n  --red: #ff3b30; --orange: #ff9500; --green: #28cd41; --yellow: #ffcc00; --purple: #af52de; --teal: #30b0c7; --pink: #ff2d55;\n  --stage: #e9e9ee;\n  font-family: var(--font);\n  font-size: 13px;\n  line-height: 1.38;\n  color: var(--text);\n  -webkit-font-smoothing: antialiased;\n  letter-spacing: -.003em;\n}\n.root.dark {\n  --accent: #0a84ff;\n  --accent-press: #409cff;\n  --accent-soft: rgba(10,132,255,.22);\n  --ring: rgba(10,132,255,.5);\n  --text: #f5f5f7;\n  --text2: #a1a1a6;\n  --text3: #6e6e73;\n  --win: rgba(36,36,40,.9);\n  --win-solid: #242428;\n  --bar: rgba(44,44,48,.82);\n  --side: rgba(40,40,44,.7);\n  --group: rgba(255,255,255,.055);\n  --field: rgba(255,255,255,.07);\n  --btn: rgba(255,255,255,.12);\n  --btn-hover: rgba(255,255,255,.17);\n  --sep: rgba(255,255,255,.08);\n  --sep-strong: rgba(255,255,255,.16);\n  --track: rgba(255,255,255,.09);\n  --hover: rgba(255,255,255,.06);\n  --shadow: 0 0 0 .5px rgba(255,255,255,.12), 0 0 0 1px rgba(0,0,0,.6), 0 24px 70px rgba(0,0,0,.55);\n  --ctl-shadow: 0 0 0 .5px rgba(255,255,255,.06), 0 1px 1px rgba(0,0,0,.3);\n  --red: #ff453a; --orange: #ff9f0a; --green: #32d74b; --yellow: #ffd60a; --purple: #bf5af2; --teal: #40c8e0; --pink: #ff375f;\n  --stage: #1b1b1e;\n}\n*, *::before, *::after { box-sizing: border-box; }\nbutton, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }\nsvg { display: block; }\n.hidden { display: none !important; }\n\n/* ── 창 ─────────────────────────────────────────────── */\n.layer { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; }\n.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.18); pointer-events: auto; animation: fade .18s ease; }\n.root.dark .scrim { background: rgba(0,0,0,.35); }\n.win {\n  position: fixed; pointer-events: auto;\n  display: flex; flex-direction: column;\n  background: var(--win);\n  -webkit-backdrop-filter: blur(40px) saturate(180%);\n  backdrop-filter: blur(40px) saturate(180%);\n  border-radius: 12px;\n  box-shadow: var(--shadow);\n  overflow: hidden;\n  animation: pop .22s cubic-bezier(.2,.9,.3,1.1);\n  min-width: 320px; min-height: 240px;\n}\n.win.zoomed { inset: 12px !important; width: auto !important; height: auto !important; }\n.win.inactive .lights i { background: var(--track); border-color: transparent; }\n@keyframes pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }\n@keyframes fade { from { opacity: 0; } }\n\n.titlebar {\n  flex: none; height: 52px;\n  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;\n  padding: 0 14px 0 16px;\n  background: var(--bar);\n  border-bottom: .5px solid var(--sep-strong);\n  user-select: none; cursor: default;\n  touch-action: none;\n}\n.titlebar.sidebar-bar { background: transparent; border-bottom: 0; }\n.titlebar .left, .titlebar .right { display: flex; align-items: center; gap: 8px; min-width: 0; }\n.titlebar .right .select { max-width: 170px; }\n.titlebar .right { justify-content: flex-end; }\n.title { text-align: center; min-width: 0; }\n.title b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.title small { display: block; font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }\n.lights { display: flex; gap: 8px; margin-right: 6px; }\n.lights i {\n  width: 12px; height: 12px; border-radius: 50%; display: grid; place-items: center;\n  border: .5px solid rgba(0,0,0,.18); cursor: pointer; position: relative;\n}\n.lights i:nth-child(1) { background: #ff5f57; }\n.lights i:nth-child(2) { background: #febc2e; }\n.lights i:nth-child(3) { background: #28c840; }\n.lights i:hover { filter: brightness(.92); }\n.lights i.off { background: var(--track) !important; cursor: default; }\n\n/* ── 컨트롤 ─────────────────────────────────────────── */\n.btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: 5px;\n  height: 24px; padding: 0 10px; border-radius: 6px; border: 0;\n  background: var(--btn); box-shadow: var(--ctl-shadow);\n  font-size: 13px; font-weight: 500; white-space: nowrap; cursor: default;\n}\n.btn:hover { background: var(--btn-hover); }\na.btn { text-decoration: none; color: inherit; }\n.btn:active { filter: brightness(.94); }\n.btn:disabled { opacity: .45; pointer-events: none; }\n.btn svg { width: 14px; height: 14px; }\n.btn.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent)); color: #fff; box-shadow: 0 .5px 1px rgba(0,0,0,.25), inset 0 .5px 0 rgba(255,255,255,.25); }\n.btn.primary:hover { background: var(--accent); }\n.btn.danger { color: var(--red); }\n.btn.lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }\n.btn.ghost { background: transparent; box-shadow: none; }\n.btn.ghost:hover { background: var(--hover); }\n.icon-btn {\n  width: 28px; height: 28px; border-radius: 6px; border: 0; background: transparent;\n  display: inline-grid; place-items: center; color: var(--text2); cursor: default;\n}\n.icon-btn:hover { background: var(--hover); color: var(--text); }\n.icon-btn svg { width: 16px; height: 16px; }\n.icon-btn.sm { width: 22px; height: 22px; } .icon-btn.sm svg { width: 13px; height: 13px; }\n.kbd { font-size: 11px; opacity: .75; margin-left: 2px; }\n\n.field, .ta, .select {\n  width: 100%; border: 0; outline: 0;\n  background: var(--field); box-shadow: var(--ctl-shadow);\n  border-radius: 6px; padding: 4px 8px; min-height: 24px;\n  transition: box-shadow .12s;\n}\n.field:focus, .ta:focus, .select:focus { box-shadow: 0 0 0 .5px var(--accent), 0 0 0 3.5px var(--ring); }\n.field::placeholder, .ta::placeholder { color: var(--text3); }\n.ta { display: block; resize: vertical; min-height: 54px; padding: 6px 8px; font-size: 12.5px; line-height: 1.45; font-family: var(--font); }\n.ta.mono, .field.mono { font-family: var(--mono); font-size: 12px; }\n.ta.short { min-height: 38px; }\n.select {\n  appearance: none; -webkit-appearance: none; padding-right: 26px; cursor: default; height: 24px; min-height: 0;\n  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1 4.5 4 1.5l3 3M1 7.5l3 3 3-3' fill='none' stroke='%23888' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");\n  background-repeat: no-repeat; background-position: right 8px center;\n}\n.root.dark .select option { background: #2c2c30; }\n.field.num { width: 72px; text-align: right; font-variant-numeric: tabular-nums; }\n\n.seg { display: inline-flex; background: var(--track); border-radius: 7px; padding: 2px; gap: 2px; }\n.seg button {\n  border: 0; background: transparent; height: 20px; padding: 0 10px; border-radius: 5px;\n  font-size: 12px; font-weight: 500; color: var(--text); cursor: default; white-space: nowrap;\n}\n.seg button.on { background: var(--btn); box-shadow: var(--ctl-shadow); }\n.root.dark .seg button.on { background: rgba(255,255,255,.2); }\n.seg.sm button { padding: 0 7px; font-size: 11px; height: 18px; }\n\n.switch { position: relative; width: 32px; height: 19px; flex: none; }\n.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: default; z-index: 1; }\n.switch span { position: absolute; inset: 0; border-radius: 99px; background: var(--track); box-shadow: inset 0 0 0 .5px var(--sep); transition: background .2s; }\n.switch span::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s cubic-bezier(.3,.7,.4,1.2); }\n.switch input:checked + span { background: var(--accent); }\n.switch input:checked + span::after { transform: translateX(13px); }\n\n.badge { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 5px; font-size: 10.5px; font-weight: 600; background: var(--track); color: var(--text2); white-space: nowrap; }\n.badge.blue { background: var(--accent-soft); color: var(--accent); }\n.badge.orange { background: color-mix(in srgb, var(--orange) 18%, transparent); color: var(--orange); }\n.badge.green { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }\n.badge.red { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }\n.muted { color: var(--text2); }\n.tiny { font-size: 11px; }\n.grow { flex: 1; }\n.row { display: flex; align-items: center; gap: 8px; }\n.stack { display: flex; flex-direction: column; gap: 6px; }\n\n/* 스크롤 */\n.scroll { overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--sep-strong) transparent; }\n.scroll::-webkit-scrollbar { width: 10px; height: 10px; }\n.scroll::-webkit-scrollbar-thumb { background: var(--sep-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }\n\n/* ── 그룹 리스트 (시스템 설정 스타일) ─────────────────── */\n.section-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: none; margin: 18px 4px 6px; display: flex; align-items: center; gap: 6px; }\n.section-title:first-child { margin-top: 0; }\n.section-title .grow + * { font-weight: 500; }\n.group { background: var(--group); border-radius: 10px; box-shadow: 0 0 0 .5px var(--sep); }\n.group > .item { padding: 9px 12px; display: flex; align-items: center; gap: 10px; min-height: 40px; position: relative; }\n.group > .item + .item::before { content: ''; position: absolute; top: 0; left: 12px; right: 0; border-top: .5px solid var(--sep); }\n.group > .item.col { flex-direction: column; align-items: stretch; gap: 6px; }\n.item .label { flex: 1; min-width: 0; }\n.item .label b { font-weight: 500; display: block; }\n.item .label small { display: block; color: var(--text2); font-size: 11.5px; margin-top: 1px; }\n.footnote { color: var(--text2); font-size: 11.5px; margin: 6px 4px 0; line-height: 1.45; }\n.footnote code, .help code { font-family: var(--mono); font-size: 11px; background: var(--track); padding: 0 4px; border-radius: 4px; }\n\n/* ── 스튜디오 ─────────────────────────────────────── */\n.studio { width: min(1180px, calc(100vw - 32px)); height: min(820px, calc(100vh - 32px)); }\n.studio .body { flex: 1; display: grid; grid-template-columns: minmax(300px, 1fr) minmax(380px, 460px); min-height: 0; }\n.stage { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--stage); border-right: .5px solid var(--sep-strong); }\n.canvas { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; overflow: hidden; }\n.canvas img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,.18), 0 0 0 .5px var(--sep); cursor: zoom-in; }\n.placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text3); text-align: center; max-width: 280px; }\n.placeholder svg { width: 44px; height: 44px; opacity: .6; }\n.placeholder b { color: var(--text2); font-weight: 600; font-size: 14px; }\n.busy {\n  position: absolute; inset: 0; display: grid; place-items: center;\n  background: color-mix(in srgb, var(--stage) 55%, transparent);\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n}\n.busy .card { background: var(--win); border-radius: 14px; box-shadow: var(--shadow); padding: 18px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 220px; }\n.spinner { width: 22px; height: 22px; position: relative; }\n.spinner i { position: absolute; left: 10px; top: 1px; width: 2.2px; height: 6px; border-radius: 2px; background: var(--text2); transform-origin: 1.1px 10px; animation: spin 1s linear infinite; }\n@keyframes spin { 0% { opacity: 1; } 100% { opacity: .15; } }\n.film { flex: none; display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; border-top: .5px solid var(--sep); align-items: center; background: var(--bar); }\n.film .thumb { flex: none; width: 46px; height: 46px; border-radius: 7px; overflow: hidden; border: 0; padding: 0; background: var(--track); box-shadow: 0 0 0 .5px var(--sep); cursor: default; position: relative; }\n.film .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }\n.film .thumb.on { box-shadow: 0 0 0 2px var(--accent); }\n.film .thumb .pin { position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; }\n.film .thumb .pin svg { width: 8px; height: 8px; }\n.film .tools { display: flex; gap: 2px; margin-left: auto; }\n\n.inspector { display: flex; flex-direction: column; min-height: 0; background: var(--win); }\n.inspector .content { flex: 1; padding: 14px 16px 24px; }\n.inspector .footer { flex: none; border-top: .5px solid var(--sep-strong); background: var(--bar); padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }\n\n.moment { font-size: 12.5px; color: var(--text2); padding: 2px 4px 0; }\n.slot { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 7px; }\n.slot + .slot { border-top: .5px solid var(--sep); }\n.slot-head { display: flex; align-items: center; gap: 7px; min-height: 22px; }\n.slot-head .name { font-weight: 600; font-size: 13px; }\n.slot-head .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }\n.slot-head .tok { margin-left: auto; font-variant-numeric: tabular-nums; }\n.slot .sub { font-size: 11px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; }\n.slot.off > :not(.slot-head) { display: none; }\n.slot.off .name { color: var(--text3); }\n.where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text2); font-weight: 600; letter-spacing: .02em; }\n.where svg { width: 11px; height: 11px; }\n\n.notes { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }\n.note { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; padding: 8px 10px; border-radius: 8px; background: var(--group); box-shadow: 0 0 0 .5px var(--sep); }\n.note svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--accent); }\n.note.warn svg { color: var(--orange); }\n.note.error svg { color: var(--red); }\n\ndetails.raw { margin-top: 12px; }\ndetails.raw summary { cursor: default; font-size: 11px; font-weight: 600; color: var(--text2); list-style: none; display: flex; align-items: center; gap: 4px; padding: 4px; }\ndetails.raw summary::-webkit-details-marker { display: none; }\ndetails.raw summary svg { width: 10px; height: 10px; transition: transform .15s; }\ndetails.raw[open] summary svg { transform: rotate(90deg); }\ndetails.raw pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 11px; line-height: 1.5; background: var(--group); box-shadow: 0 0 0 .5px var(--sep); border-radius: 8px; padding: 10px 12px; max-height: 320px; overflow: auto; }\ndetails.raw pre .k { color: var(--purple); }\n\n.meter { display: flex; flex-direction: column; gap: 4px; }\n.meter .bar { height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; display: flex; }\n.meter .bar i { height: 100%; display: block; }\n.meter .bar i + i { box-shadow: -1px 0 0 var(--win-solid); }\n.meter .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }\n.meter .legend span { display: inline-flex; align-items: center; gap: 4px; }\n.meter .legend span::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }\n.meter .legend .total { margin-left: auto; font-weight: 600; color: var(--text); }\n.meter.over .legend .total { color: var(--red); }\n.c-style { --c: var(--purple); } .c-scene { --c: var(--accent); }\n.c-0 { --c: var(--orange); } .c-1 { --c: var(--green); } .c-2 { --c: var(--pink); } .c-3 { --c: var(--teal); } .c-4 { --c: var(--yellow); } .c-5 { --c: #8e8e93; }\n\n/* 팝오버 메뉴 */\n.menu { position: fixed; pointer-events: auto; min-width: 200px; max-width: 320px; max-height: 60vh; overflow: auto; padding: 5px; border-radius: 9px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); z-index: 5; animation: fade .1s; }\n.menu button { display: flex; width: 100%; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent; padding: 4px 10px; border-radius: 5px; font-size: 13px; cursor: default; min-height: 24px; }\n.menu button:hover { background: var(--accent); color: #fff; }\n.menu button:hover small { color: rgba(255,255,255,.8); }\n.menu button small { color: var(--text2); font-size: 11px; display: block; }\n.menu hr { border: 0; border-top: .5px solid var(--sep-strong); margin: 4px 8px; }\n.menu .hd { font-size: 11px; font-weight: 600; color: var(--text2); padding: 4px 10px 2px; }\n\n/* ── 설정 ─────────────────────────────────────────── */\n.settings { width: min(860px, calc(100vw - 32px)); height: min(640px, calc(100vh - 32px)); }\n.settings .body { flex: 1; display: grid; grid-template-columns: 210px 1fr; min-height: 0; }\n.settings .side { background: var(--side); border-right: .5px solid var(--sep-strong); display: flex; flex-direction: column; min-height: 0; }\n.settings .side .titlebar { background: transparent; border: 0; grid-template-columns: auto 1fr; }\n.settings .nav { padding: 4px 10px 12px; display: flex; flex-direction: column; gap: 1px; }\n.settings .nav button { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; height: 30px; padding: 0 8px; border-radius: 6px; font-size: 13px; text-align: left; cursor: default; }\n.settings .nav button:hover { background: var(--hover); }\n.settings .nav button.on { background: var(--accent); color: #fff; }\n.settings .nav .ic { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; color: #fff; flex: none; }\n.settings .nav .ic svg { width: 12px; height: 12px; }\n.settings .main { display: flex; flex-direction: column; min-height: 0; }\n.settings .main .titlebar { grid-template-columns: auto 1fr auto; }\n.settings .main .titlebar .title { text-align: left; }\n.settings .main .titlebar .title b { font-size: 15px; font-weight: 700; }\n.settings .pane { flex: 1; padding: 6px 24px 28px; }\n.side .search { margin: 0 10px 8px; }\n.char-list { display: flex; flex-direction: column; }\n.char-list button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; text-align: left; padding: 8px 12px; cursor: default; position: relative; }\n.char-list button + button::before { content: ''; position: absolute; top: 0; left: 46px; right: 0; border-top: .5px solid var(--sep); }\n.char-list button:hover { background: var(--hover); }\n.char-list button:first-child { border-radius: 10px 10px 0 0; } .char-list button:last-child { border-radius: 0 0 10px 10px; }\n.avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 12px; flex: none; }\n.char-list .meta { flex: 1; min-width: 0; }\n.char-list .meta b { display: block; font-weight: 500; }\n.char-list .meta small { display: block; color: var(--text2); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.chev { width: 8px; height: 13px; color: var(--text3); flex: none; }\n.kv { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; }\n\n/* ── 알림 (macOS Notification) ───────────────────── */\n.toasts { position: fixed; top: 14px; right: 14px; display: flex; flex-direction: column; gap: 8px; width: min(356px, calc(100vw - 28px)); pointer-events: none; z-index: 10; }\n.toast {\n  pointer-events: auto; display: flex; gap: 10px; align-items: flex-start;\n  padding: 11px 12px; border-radius: 16px;\n  background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);\n  box-shadow: var(--shadow);\n  animation: slide .32s cubic-bezier(.2,.9,.3,1.1);\n}\n.toast.leaving { animation: out .2s ease forwards; }\n@keyframes slide { from { opacity: 0; transform: translateX(30px); } }\n@keyframes out { to { opacity: 0; transform: translateX(30px); } }\n.toast .app { width: 32px; height: 32px; border-radius: 8px; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }\n.toast .app svg { width: 18px; height: 18px; }\n.toast .app.err { background: linear-gradient(135deg, #ff6a5c, #ff3b30); }\n.toast .app.ok { background: linear-gradient(135deg, #5ee07a, #28c840); }\n.toast .txt { flex: 1; min-width: 0; }\n.toast .txt b { display: block; font-size: 13px; font-weight: 600; }\n.toast .txt p { margin: 1px 0 0; font-size: 12.5px; color: var(--text2); word-break: break-word; }\n.toast .acts { display: flex; gap: 6px; margin-top: 8px; }\n.toast .prog { height: 3px; border-radius: 99px; background: var(--track); overflow: hidden; margin-top: 8px; }\n.toast .prog i { display: block; height: 100%; width: 40%; background: var(--accent); border-radius: 99px; animation: indet 1.2s ease-in-out infinite; }\n@keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }\n.toast .x { opacity: 0; transition: opacity .15s; margin: -4px -4px 0 0; }\n.toast:hover .x { opacity: 1; }\n\n/* 미니 독 (노란 버튼으로 숨긴 창) */\n.dock { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); pointer-events: auto; animation: pop .2s; }\n.dock button { border: 0; background: transparent; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 11px; cursor: default; font-size: 12.5px; font-weight: 500; }\n.dock button:hover { background: var(--hover); }\n.dock .app { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }\n.dock .app svg { width: 15px; height: 15px; }\n\n/* 라이트박스 */\n.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: grid; place-items: center; pointer-events: auto; animation: fade .15s; cursor: zoom-out; }\n.lightbox img { max-width: 94vw; max-height: 94vh; border-radius: 6px; }\n\n/* ── 좁은 화면: 시트처럼 꽉 채움 ─────────────────── */\n@media (max-width: 760px) {\n  .win { inset: 0 !important; width: auto !important; height: auto !important; border-radius: 0; }\n  .studio .body { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 42%) 1fr; }\n  .stage { border-right: 0; border-bottom: .5px solid var(--sep-strong); }\n  .settings .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }\n  .settings .side { border-right: 0; border-bottom: .5px solid var(--sep-strong); }\n  .settings .side .titlebar { display: none; }\n  .settings .nav { flex-direction: row; overflow-x: auto; padding: 8px; }\n  .settings .nav button { flex: none; }\n  .settings .pane { padding: 6px 14px 24px; }\n  .kv { grid-template-columns: 1fr; gap: 4px; }\n  .titlebar { padding: 0 10px; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; }\n  .titlebar .title { text-align: left; }\n  .titlebar .title small { display: none; }\n  .titlebar .right .select { max-width: 116px; }\n  .lights { margin-right: 0; }\n  .slot-head .muted.tiny { display: none; }\n  .kbd { display: none; }\n  .inspector .content { padding: 12px 12px 20px; }\n}\n";
 
 const PAGE_CSS = "/* ── Crack Painter · 채팅 화면에 붙는 요소 ───────────── */\n.cp-figure { position: relative; margin: 14px 0; max-width: 100%; display: flex; flex-direction: column; align-items: center; }\n.cp-figure .cp-img-wrap { position: relative; display: inline-block; max-width: 100%; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 .5px rgba(0,0,0,.12), 0 6px 22px rgba(0,0,0,.14); line-height: 0; }\n.cp-figure img { display: block; max-width: 100%; max-height: 78vh; height: auto; cursor: zoom-in; }\n.cp-figure .cp-bar {\n  position: absolute; left: 50%; bottom: 10px; transform: translate(-50%, 6px);\n  display: flex; align-items: center; gap: 2px; padding: 3px;\n  border-radius: 10px; line-height: 1;\n  background: rgba(30,30,32,.62); color: #fff;\n  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);\n  box-shadow: 0 0 0 .5px rgba(255,255,255,.14), 0 4px 16px rgba(0,0,0,.25);\n  opacity: 0; transition: opacity .16s, transform .16s; white-space: nowrap;\n  font: 500 12px -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Apple SD Gothic Neo\", Pretendard, system-ui, sans-serif;\n}\n.cp-figure:hover .cp-bar, .cp-figure:focus-within .cp-bar, .cp-figure.cp-touch .cp-bar { opacity: 1; transform: translate(-50%, 0); }\n.cp-figure .cp-bar button { all: unset; display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 26px; padding: 0 4px; border-radius: 7px; cursor: pointer; color: #fff; }\n.cp-figure .cp-bar button:hover { background: rgba(255,255,255,.16); }\n.cp-figure .cp-bar button:disabled { opacity: .35; pointer-events: none; }\n.cp-figure .cp-bar svg { width: 15px; height: 15px; display: block; }\n.cp-figure .cp-bar .cp-count { padding: 0 4px; font-variant-numeric: tabular-nums; opacity: .9; font-size: 11.5px; }\n.cp-figure .cp-bar .cp-sep { width: .5px; height: 16px; background: rgba(255,255,255,.25); margin: 0 3px; }\n.cp-figure .cp-busy { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.28); color: #fff; font: 600 12px -apple-system, system-ui, sans-serif; line-height: 1.4; }\n.cp-figure .cp-cap { margin-top: 6px; font: 11.5px -apple-system, BlinkMacSystemFont, \"Apple SD Gothic Neo\", Pretendard, system-ui, sans-serif; opacity: .55; text-align: center; }\nbody.cp-hidden .cp-figure, body.cp-hidden .cp-msg-btn { display: none !important; }\n\n.cp-msg-btn { all: unset; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; color: currentColor; opacity: .62; transition: opacity .15s, background .15s; }\n.cp-msg-btn:hover { opacity: 1; background: rgba(127,127,127,.14); }\n.cp-msg-btn svg { width: 18px; height: 18px; display: block; }\n.cp-msg-btn.cp-running { opacity: 1; color: #0a84ff; animation: cp-pulse 1.2s ease-in-out infinite; }\n@keyframes cp-pulse { 50% { opacity: .45; } }\n";
 
@@ -293,7 +293,7 @@ const Core = (() => {
         if (droppedAppearance) notes.push({ level: 'info', text: `장면 칸의 머리색·눈색 같은 외형 태그 ${droppedAppearance}개는 캐릭터 칸이 맡으니까 뺐어.` });
         const sceneCaption = isV5 ? stripNames(scene.caption, names).trim() : '';
 
-        const count = String(scene.count || '').trim() || (outChars.length ? countTag(subjects) : '');
+        const count = String(scene.count || '').trim() || (outChars.length === 1 ? `${countTag(subjects)}, solo` : outChars.length ? countTag(subjects) : '');
 
         const styleTags = dedupe([...splitTags(style.pos), ...movedStyle]);
         const baseTags = dedupe([...styleTags, ...splitTags(count), ...sceneTags]);
@@ -742,6 +742,7 @@ const NAI = (() => {
         if (!apiKey) throw Object.assign(new Error('NovelAI 키가 없어. 설정 → 연결에서 넣어줘.'), { code: 'NO_KEY', pane: 'api' });
         const useSeed = seed === '' || seed == null || !Number.isFinite(Number(seed)) ? randomSeed() : Number(seed);
         const payload = buildPayload(assembled, gen, useSeed);
+        validate(payload);
         const isV5 = assembled.family === 'v5';
         let data = payload;
         if (isV5) {
@@ -751,6 +752,7 @@ const NAI = (() => {
         const buffer = await Net.request({
             method: 'POST',
             url: 'https://image.novelai.net/ai/generate-image',
+            onError: err => { err.diag = diagnose(payload, assembled); },
             headers: isV5 ? { Authorization: `Bearer ${apiKey}` } : { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             data,
             raw: isV5,
@@ -759,6 +761,33 @@ const NAI = (() => {
             signal
         });
         return { blob: extractImage(buffer), seed: useSeed, payload };
+    }
+
+    // 서버가 400으로 거부할 값을 미리 잡는다
+    function validate(payload) {
+        const p = payload.parameters;
+        const bad = [];
+        if (!Number.isInteger(p.steps) || p.steps < 1 || p.steps > 50) bad.push(`스텝 ${p.steps} (1~50)`);
+        if (!Number.isFinite(p.scale) || p.scale < 0 || p.scale > 10) bad.push(`Guidance ${p.scale} (0~10)`);
+        if (!Number.isFinite(p.cfg_rescale) || p.cfg_rescale < 0 || p.cfg_rescale > 1) bad.push(`Rescale ${p.cfg_rescale} (0~1)`);
+        if (p.width % 64 || p.height % 64) bad.push(`크기 ${p.width}×${p.height}`);
+        if (!String(payload.input || '').trim()) bad.push('베이스 프롬프트가 비어 있음');
+        if (bad.length) throw Object.assign(new Error(`생성 옵션 값이 잘못됐어: ${bad.join(', ')}. 설정 → 생성 옵션에서 고쳐줘.`), { pane: 'gen' });
+    }
+
+    function diagnose(payload, assembled) {
+        const p = payload.parameters;
+        const caps = p.v4_prompt.caption;
+        return [
+            `model: ${payload.model} (params_version ${p.params_version})`,
+            `size: ${p.width}x${p.height} · steps ${p.steps} · scale ${p.scale} · rescale ${p.cfg_rescale} · ${p.sampler}/${p.noise_schedule}`,
+            `uc preset: ${p.ucPresetId ?? p.ucPreset} · coords: ${p.v4_prompt.use_coords} · characters: ${caps.char_captions.length}`,
+            `tokens(추정): base ${assembled.budget.base} · chars ${assembled.budget.chars} / ${assembled.budget.limit}`,
+            '',
+            `[base_caption] ${caps.base_caption}`,
+            ...caps.char_captions.map((c, i) => `[char ${i}] (${c.centers[0].x},${c.centers[0].y}) ${c.char_caption}`),
+            `[negative] ${p.negative_prompt}`
+        ].join('\n');
     }
 
     return { SIZES, DEFAULT_GEN, UC_LABELS, V5_QUALITY, ucTable, ucPresetFor, mergeNegative, buildPayload, extractImage, generate, randomSeed };
@@ -777,6 +806,27 @@ const NAI = (() => {
 // ─────────────────────────────────────────────────────────────
 const Net = (() => {
     'use strict';
+
+    function serviceOf(url) {
+        const h = String(url || '');
+        if (/novelai\.net/.test(h)) return 'NovelAI';
+        if (/googleapis\.com/.test(h)) return 'Gemini';
+        if (/deepseek\.com/.test(h)) return 'DeepSeek';
+        return '서버';
+    }
+
+    // 서비스별로 흔한 원인을 사람 말로 바꾼다. pane 이 있으면 알림에 "설정 열기" 버튼이 붙는다.
+    function explain(service, status, detail) {
+        const d = String(detail || '');
+        if (service === 'Gemini' && (/API key not valid|API_KEY_INVALID|api key/i.test(d) || status === 403)) {
+            return { text: 'Gemini 키가 올바르지 않아. NovelAI 토큰(pst-…)이 아니라 Google AI Studio에서 받은 AIza… 키를 넣어야 해.', pane: 'api' };
+        }
+        if (service === 'DeepSeek' && status === 401) return { text: 'DeepSeek 키가 올바르지 않아.', pane: 'api' };
+        if (service === 'NovelAI' && status === 401) return { text: 'NovelAI 토큰이 틀렸거나 만료됐어. NovelAI 설정에서 새 토큰을 받아 넣어줘.', pane: 'api' };
+        if (service === 'NovelAI' && status === 402) return { text: 'NovelAI 구독이 없거나 Anlas가 부족해.', pane: null };
+        if (service === 'NovelAI' && status === 400) return { text: `NovelAI가 요청 내용을 거부했어. 토큰 문제는 아니야(토큰이 틀리면 401이 떠).${d ? ` 서버 메시지: ${d}` : ''}`, pane: null };
+        return null;
+    }
 
     function httpMessage(status, text) {
         let detail = '';
@@ -800,11 +850,20 @@ const Net = (() => {
         return `${hint} (HTTP ${status})${detail ? ` · ${detail}` : ''}`;
     }
 
+    function extractDetail(text) {
+        try {
+            const j = JSON.parse(text);
+            return j?.error?.message || j?.message || (typeof j?.error === 'string' ? j.error : '') || '';
+        } catch (_) {
+            return String(text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+        }
+    }
+
     function bytesToText(buf) {
         try { return new TextDecoder().decode(new Uint8Array(buf).slice(0, 4000)); } catch (_) { return ''; }
     }
 
-    function request({ method = 'GET', url, headers = {}, data, raw = false, responseType = 'text', timeout = 120000, signal }) {
+    function request({ method = 'GET', url, headers = {}, data, raw = false, responseType = 'text', timeout = 120000, signal, onError }) {
         return new Promise((resolve, reject) => {
             if (signal?.aborted) return reject(abortError());
             let done = false;
@@ -818,9 +877,15 @@ const Net = (() => {
                     if (res.status < 200 || res.status >= 300) {
                         const text = typeof res.responseText === 'string' && res.responseText ? res.responseText
                             : res.response instanceof ArrayBuffer ? bytesToText(res.response) : String(res.response || '');
-                        const err = new Error(httpMessage(res.status, text));
+                        const service = serviceOf(url);
+                        const detail = extractDetail(text);
+                        const ex = explain(service, res.status, detail);
+                        const err = new Error(ex ? ex.text : `${service}: ${httpMessage(res.status, text)}`);
                         err.status = res.status;
+                        err.service = service;
                         err.body = text;
+                        if (ex?.pane) err.pane = ex.pane;
+                        try { onError?.(err); } catch (_) {}
                         return finish(reject, err);
                     }
                     if (responseType === 'arraybuffer') return finish(resolve, res.response);
@@ -879,7 +944,9 @@ const Store = (() => {
             presets: [],
             characters: [],
             rooms: {},
-            ui: { contextTurns: 4 }
+            ui: { contextTurns: 4 },
+            scene: { people: 'auto' },
+            folder: { enabled: false, perRoom: true, download: false }
         };
     }
 
@@ -893,6 +960,8 @@ const Store = (() => {
         out.characters = Array.isArray(s.characters) ? s.characters.map(normChar) : [];
         out.rooms = s.rooms && typeof s.rooms === 'object' ? s.rooms : {};
         out.ui = { ...d.ui, ...(s.ui || {}) };
+        out.scene = { ...d.scene, ...(s.scene || {}) };
+        out.folder = { ...d.folder, ...(s.folder || {}) };
         if (!Core.MODELS[out.model]) out.model = Core.DEFAULT_MODEL;
         return out;
     }
@@ -958,10 +1027,11 @@ const Store = (() => {
     function db() {
         if (dbp) return dbp;
         dbp = new Promise((resolve, reject) => {
-            const req = indexedDB.open('crack-painter', 1);
+            const req = indexedDB.open('crack-painter', 2);
             req.onupgradeneeded = () => {
                 const d = req.result;
                 if (!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+                if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
                 if (!d.objectStoreNames.contains('records')) {
                     const s = d.createObjectStore('records', { keyPath: 'key' });
                     s.createIndex('room', 'roomId');
@@ -1036,6 +1106,15 @@ const Store = (() => {
         emit(`records:${roomId}`);
     }
 
+    async function getMeta(key) {
+        const d = await db();
+        return reqP(d.transaction('meta').objectStore('meta').get(key));
+    }
+
+    async function setMeta(key, value) {
+        await tx('meta', 'readwrite', s => (value == null ? s.delete(key) : s.put(value, key)));
+    }
+
     async function usage() {
         try {
             const est = await navigator.storage?.estimate?.();
@@ -1045,7 +1124,7 @@ const Store = (() => {
         }
     }
 
-    return { on, emit, settings, update, secrets, setSecret, roomChars, uid, putImage, getImage, deleteImage, getRecord, roomRecords, putRecord, deleteRecord, usage };
+    return { on, emit, settings, update, secrets, setSecret, roomChars, uid, putImage, getImage, deleteImage, getRecord, roomRecords, putRecord, deleteRecord, usage, getMeta, setMeta };
 })();
 
 
@@ -1120,7 +1199,16 @@ const LLM = (() => {
 - 같은 뜻의 분위기 형용사를 쌓지 않는다.${v5 ? '\n- V5 는 문장을 잘 이해한다. 태그로 손실되는 관계·배치·광원은 caption 에 영어 문장으로 쓴다. 감정 선언이나 줄거리 요약은 쓰지 않는다.' : '\n- V4.5 는 문장보다 태그가 안정적이다. caption 은 모두 빈 문자열.'}`;
     }
 
-    function userPrompt({ characters, note, context, paragraphs, fixedParagraph, request }) {
+    function peopleRule(people, focus) {
+        const n = Number(people);
+        if (!n) return '';
+        const who = focus ? ` 한 명만 그릴 때는 '${focus.name}'(id=${focus.id})를 그린다.` : '';
+        return n === 1
+            ? `[인원 · 최우선] characters 에는 정확히 1명만 넣는다. 장면의 중심 인물 한 명을 단독(solo) 구도로 그리고, 다른 인물은 화면 밖에 두거나 손·뒷모습 같은 일부도 넣지 않는다.${who}`
+            : `[인원 · 최우선] characters 는 최대 ${n}명. 중요한 순서대로 넣는다.${who}`;
+    }
+
+    function userPrompt({ characters, note, context, paragraphs, fixedParagraph, request, people, focus }) {
         const chars = characters.length
             ? characters.map(c => `- id=${c.id} | 이름=${c.name}${c.aliases?.length ? ` | 별칭=${c.aliases.join(', ')}` : ''} | 외형(참고용, 다시 쓰지 말 것)=${Core.joinTags([c.look, c.outfit]).slice(0, 200)}`).join('\n')
             : '(등록된 인물 없음 · 보이는 인물은 모두 미등록으로 look 을 채운다)';
@@ -1131,6 +1219,7 @@ const LLM = (() => {
             context ? `[최근 맥락 · 이전 대화]\n${context}` : '',
             `[대상 답변 · 문단 번호]\n${paras}`,
             Number.isInteger(fixedParagraph) ? `[고정] insertAfterParagraph=${fixedParagraph} 인 문단의 순간을 그린다. 다른 장면으로 옮기지 않는다.` : '',
+            peopleRule(people, focus),
             request ? `[사용자 수정 요청 · 최우선]\n${request}` : ''
         ].filter(Boolean).join('\n\n');
     }
@@ -1393,6 +1482,109 @@ const Crack = (() => {
 })();
 
 
+// ===== folder.js =====
+// ─────────────────────────────────────────────────────────────
+// Folder: 생성한 삽화를 내 컴퓨터 폴더에도 PNG로 저장
+// Chrome·Edge·Whale 등 Chromium 브라우저의 File System Access API 사용.
+// 지원하지 않는 브라우저(Firefox·Safari)는 "생성할 때마다 다운로드"로 대신한다.
+//
+// 폴더 권한은 브라우저를 다시 열면 "다시 허용"이 필요할 수 있다. 권한 요청은
+// 클릭 직후에만 가능해서, 생성 버튼을 누른 순간 prime()으로 미리 요청한다.
+// ─────────────────────────────────────────────────────────────
+const Folder = (() => {
+    'use strict';
+    const supported = typeof window.showDirectoryPicker === 'function';
+    let handle = null;
+    let loaded = null;
+
+    function load() {
+        if (!loaded) loaded = Store.getMeta('folder').then(h => { handle = h || null; return handle; }).catch(() => null);
+        return loaded;
+    }
+
+    async function pick() {
+        if (!supported) throw new Error('이 브라우저는 폴더 지정을 지원하지 않아. Chrome·Edge·Whale에서 쓸 수 있어.');
+        const h = await window.showDirectoryPicker({ id: 'crack-painter', mode: 'readwrite', startIn: 'pictures' });
+        handle = h;
+        loaded = Promise.resolve(h);
+        await Store.setMeta('folder', h);
+        return h;
+    }
+
+    async function clear() {
+        handle = null;
+        loaded = Promise.resolve(null);
+        await Store.setMeta('folder', null);
+    }
+
+    async function status() {
+        await load();
+        if (!handle) return { set: false };
+        let permission = 'prompt';
+        try { permission = await handle.queryPermission({ mode: 'readwrite' }); } catch (_) {}
+        return { set: true, name: handle.name, permission };
+    }
+
+    // 클릭 핸들러 안에서 바로 부른다. 권한이 'prompt'면 이때 허용 창이 뜬다.
+    function prime(force = false) {
+        if (!handle || (!force && !Store.settings().folder?.enabled)) return Promise.resolve(false);
+        try {
+            return handle.queryPermission({ mode: 'readwrite' }).then(p => p === 'granted' ? true : handle.requestPermission({ mode: 'readwrite' }).then(r => r === 'granted')).catch(() => false);
+        } catch (_) {
+            return Promise.resolve(false);
+        }
+    }
+
+    const clean = s => String(s || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'untitled';
+
+    function roomName() {
+        const t = document.title.replace(/\s*[|·-]\s*(크랙|crack|wrtn).*$/i, '').trim();
+        return clean(t && !/^(크랙|crack)$/i.test(t) ? t : Crack.roomId());
+    }
+
+    function fileName({ title, seed }) {
+        const d = new Date();
+        const p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}_${clean(title || 'scene')}_${seed}.png`;
+    }
+
+    let warned = false;
+    async function save(blob, info) {
+        const s = Store.settings().folder || {};
+        const name = fileName(info);
+        if (s.enabled && handle) {
+            try {
+                if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') throw new Error('폴더 권한이 없어. 설정 → 저장 공간에서 "다시 허용"을 눌러줘.');
+                let dir = handle;
+                if (s.perRoom !== false) dir = await handle.getDirectoryHandle(roomName(), { create: true });
+                const fh = await dir.getFileHandle(name, { create: true });
+                const w = await fh.createWritable();
+                await w.write(blob);
+                await w.close();
+                return { ok: true, where: `${handle.name}${s.perRoom !== false ? `/${roomName()}` : ''}/${name}` };
+            } catch (e) {
+                if (!warned) {
+                    warned = true;
+                    UI.toast({ title: '폴더에 저장하지 못했어', body: `${e.message} (브라우저 안에는 저장됐어)`, kind: 'err', actions: [{ label: '설정 열기', onClick: () => Settings.open('storage') }] });
+                }
+                return { ok: false };
+            }
+        }
+        if (s.download) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            return { ok: true, where: `다운로드/${name}` };
+        }
+        return { ok: false };
+    }
+
+    return { supported, load, pick, clear, status, prime, save, roomName };
+})();
+
+
 // ===== ui.js =====
 // ─────────────────────────────────────────────────────────────
 // UI 기반: Shadow DOM 호스트, 테마, 아이콘, 창, 메뉴, 알림
@@ -1494,7 +1686,7 @@ const UI = (() => {
         el.setAttribute('aria-label', title);
         el.innerHTML = `
             <div class="titlebar" data-drag>
-              <div class="left"><div class="lights"><i data-act="close" title="닫기">${icons.x}</i><i data-act="min" title="내리기">${icons.minus}</i><i data-act="zoom" title="크게">${icons.zoom}</i></div><span class="tb-left"></span></div>
+              <div class="left"><div class="lights"><i data-act="close" aria-label="닫기"></i><i data-act="min" aria-label="내리기"></i><i data-act="zoom" aria-label="크게"></i></div><span class="tb-left"></span></div>
               <div class="title"><b></b><small></small></div>
               <div class="right"></div>
             </div>
@@ -1774,9 +1966,31 @@ const App = (() => {
             UI.toast({ title: '취소했어', kind: 'info' });
             return;
         }
-        console.error('[Crack Painter]', err);
-        const actions = err?.pane ? [{ label: '설정 열기', primary: true, onClick: () => Settings.open(err.pane) }] : [];
+        console.error('[Crack Painter]', err, err?.diag || '');
+        const actions = [];
+        if (err?.pane) actions.push({ label: '설정 열기', primary: true, onClick: () => Settings.open(err.pane) });
+        if (err?.diag || err?.body) actions.push({ label: '자세히', onClick: () => showDetail(title, err) });
         UI.toast({ title, body: err?.message || String(err), kind: 'err', actions, timeout: actions.length ? 0 : 8000 });
+    }
+
+    // 오류 자세히: 서버 원문 + 보낸 요청 요약 (키는 넣지 않음)
+    function showDetail(title, err) {
+        const text = [
+            `[${err.service || '오류'}] HTTP ${err.status || '-'}`,
+            err.message,
+            '',
+            '── 서버 응답 원문 ──',
+            String(err.body || '(없음)').slice(0, 3000),
+            ...(err.diag ? ['', '── 보낸 요청 요약 ──', err.diag] : [])
+        ].join('\n');
+        const w = UI.openWindow({ id: 'error-detail', className: 'detail', title: '오류 자세히', subtitle: title });
+        w.body.innerHTML = `<div class="scroll" style="flex:1;padding:14px 16px;min-height:0"><pre style="margin:0;white-space:pre-wrap;word-break:break-word;font:11.5px/1.55 var(--mono)">${UI.esc(text)}</pre></div>
+          <div class="row" style="padding:10px 14px;border-top:.5px solid var(--sep-strong);background:var(--bar)"><span class="muted tiny grow">API 키는 들어 있지 않아.</span><button class="btn primary" data-copy>복사</button></div>`;
+        w.body.style.display = 'flex';
+        w.body.style.flexDirection = 'column';
+        w.body.querySelector('[data-copy]').onclick = async ev => {
+            try { await navigator.clipboard.writeText(text); ev.target.textContent = '복사했어'; } catch (_) { ev.target.textContent = '복사 실패'; }
+        };
     }
 
     function confirmToast(title, body, okLabel = '확인', danger = false) {
@@ -1792,10 +2006,31 @@ const App = (() => {
     }
 
     // ── 분석 ─────────────────────────────────────────────
+    // 그릴 인원: 방 설정 > 전역 설정. 1명일 때 그릴 인물(focus)은 방 설정에서 고른다.
+    function peopleFor(roomId, s = Store.settings()) {
+        const room = s.rooms?.[roomId] || {};
+        const people = room.people && room.people !== 'default' ? room.people : s.scene.people;
+        const chars = Store.roomChars(roomId, s);
+        const focus = chars.find(c => c.id === room.focus) || null;
+        return { people: people === 'auto' ? 0 : Number(people) || 0, focus, chars };
+    }
+
+    function limitPeople(state, people, focus) {
+        if (!people) return state;
+        if (focus) {
+            const i = state.chars.findIndex(c => c.id === focus.id);
+            if (i > 0) state.chars.unshift(...state.chars.splice(i, 1));
+        }
+        state.chars.forEach((c, i) => { if (i >= people) c.enabled = false; });
+        return state;
+    }
+
     function analysisInput(markdown, { fixedParagraph, request } = {}) {
         const s = Store.settings();
         const roomId = Crack.roomId();
+        const { people, focus } = peopleFor(roomId, s);
         return {
+            people, focus,
             characters: Store.roomChars(roomId, s),
             note: s.rooms?.[roomId]?.note || '',
             context: Crack.contextBefore(markdown, Number(s.ui.contextTurns) || 4),
@@ -1809,8 +2044,14 @@ const App = (() => {
         const s = Store.settings();
         const input = analysisInput(markdown, opts);
         if (!input.paragraphs.length) throw new Error('이 답변에서 문단을 찾지 못했어.');
+        // 분석 AI 없이: 등록 인물만 넣은 빈 장면. 장면 태그는 스튜디오에서 직접 쓴다.
+        if (s.analyzer.provider === 'none') {
+            const picks = input.focus ? [input.focus] : input.characters;
+            const plan = { insertAfterParagraph: input.paragraphs.length - 1, characters: picks.map(c => ({ id: c.id, name: c.name })) };
+            return limitPeople(Core.planToState(plan, input.characters, s.style), input.people || 1, input.focus);
+        }
         const plan = await LLM.analyze(input, { settings: s, secrets: Store.secrets(), signal });
-        const state = Core.sanitizeAi(Core.planToState(plan, input.characters, s.style));
+        const state = limitPeople(Core.sanitizeAi(Core.planToState(plan, input.characters, s.style)), input.people, input.focus);
         state.paragraph = Math.min(state.paragraph, input.paragraphs.length - 1);
         if (Number.isInteger(opts.fixedParagraph)) state.paragraph = opts.fixedParagraph;
         return state;
@@ -1823,6 +2064,7 @@ const App = (() => {
         if (!assembled.base && !assembled.chars.length) throw new Error('프롬프트가 비어 있어.');
         const { blob, seed } = await NAI.generate({ assembled, gen, apiKey: sec.naiKey, seed: gen.seed, signal });
         const imageId = await Store.putImage(blob);
+        Folder.save(blob, { title: state.title, seed }).catch(() => {});
         const rec = (await Store.getRecord(roomId, messageKey)) || { roomId, messageKey, history: [], index: 0 };
         rec.paragraph = state.paragraph ?? rec.paragraph ?? 0;
         rec.title = state.title || rec.title || '';
@@ -1856,6 +2098,7 @@ const App = (() => {
         const roomId = Crack.roomId();
         const messageKey = Crack.messageKey(markdown);
         if (running.has(messageKey)) return UI.toast({ title: '이미 만들고 있어', body: '이 답변의 삽화를 생성 중이야.' });
+        Folder.prime();
         const controller = new AbortController();
         running.set(messageKey, { controller });
         markButtons(messageKey, true);
@@ -1883,6 +2126,7 @@ const App = (() => {
         const rec = (await records(roomId)).get(messageKey);
         const h = rec?.history?.[rec.index];
         if (!h) return;
+        Folder.prime();
         const controller = new AbortController();
         running.set(messageKey, { controller });
         setFigureBusy(messageKey, true);
@@ -2130,6 +2374,7 @@ const App = (() => {
     let lastPath = location.pathname;
     function start() {
         UI.injectPageStyle();
+        Folder.load();
         new MutationObserver(muts => {
             for (const m of muts) {
                 const t = m.target;
@@ -2253,6 +2498,7 @@ const Studio = (() => {
         const assembled = Core.assemble(sess.state, sess.model);
         if (!assembled.base && !assembled.chars.length) return App.reportError(new Error('프롬프트가 비어 있어.'));
         if (App.running.has(sess.messageKey)) return UI.toast({ title: '이 답변은 이미 생성 중이야' });
+        Folder.prime();
         sess.controller = new AbortController();
         App.running.set(sess.messageKey, { controller: sess.controller });
         sess.status = 'generating';
@@ -2712,7 +2958,7 @@ const Settings = (() => {
         });
         win.body.innerHTML = `
           <div class="side">
-            <div class="titlebar" data-drag><div class="left"><div class="lights"><i data-act="close">${icons.x}</i><i data-act="min">${icons.minus}</i><i class="off"></i></div></div></div>
+            <div class="titlebar" data-drag><div class="left"><div class="lights"><i data-act="close" aria-label="닫기"></i><i data-act="min" aria-label="내리기"></i><i class="off"></i></div></div></div>
             <nav class="nav scroll">${PANES.map(([id, label, ic, color]) => `<button data-pane="${id}"><span class="ic" style="background:${color}">${ic}</span>${label}</button>`).join('')}</nav>
           </div>
           <div class="main">
@@ -2751,7 +2997,7 @@ const Settings = (() => {
         const k = Store.secrets();
         const a = s.analyzer;
         const keyRow = (field, label, ph) => `
-          <div class="item"><span class="label"><b>${label}</b><small>${k[field] ? '저장됨 · 이 브라우저의 확장 프로그램 저장소에만 있어' : '아직 없음'}</small></span>
+          <div class="item"><span class="label"><b>${label}</b><small data-key-hint="${field}">${keyHint(field, k[field])}</small></span>
             <input class="field mono" type="password" autocomplete="off" data-secret="${field}" placeholder="${ph}" value="${val(k[field])}" style="max-width:260px">
           </div>`;
         return `
@@ -2763,17 +3009,51 @@ const Settings = (() => {
 
           <div class="section-title">장면 분석 AI</div>
           <div class="group">
-            <div class="item"><span class="label"><b>사용할 AI</b></span>${UI.seg('provider', [['gemini', 'Gemini'], ['deepseek', 'DeepSeek']], a.provider)}</div>
-            ${a.provider === 'deepseek'
+            <div class="item"><span class="label"><b>사용할 AI</b><small>채팅을 읽고 어떤 장면을 그릴지 고르는 역할 · NovelAI 토큰과는 별개야</small></span>${UI.seg('provider', [['gemini', 'Gemini'], ['deepseek', 'DeepSeek'], ['none', '안 씀']], a.provider)}</div>
+            ${a.provider === 'none'
+                ? `<div class="item"><span class="label muted">분석 AI 없이 NovelAI 토큰만으로 써. 스튜디오를 열면 등록 인물만 채워진 빈 장면이 나오고, 장면 태그와 자세는 직접 쓰면 돼. ⚡ 바로 생성은 외형·스타일만으로 그려.</span></div>`
+                : a.provider === 'deepseek'
                 ? `${keyRow('deepseekKey', 'DeepSeek 키', 'sk-…')}
                    <div class="item"><span class="label"><b>모델</b></span><select class="select" data-k="analyzer.deepseekModel" style="width:auto">${UI.options(LLM.DEEPSEEK_MODELS, a.deepseekModel)}</select></div>`
                 : `${keyRow('geminiKey', 'Gemini 키', 'AIza…')}
-                   <div class="item"><span class="label"><b>모델</b></span><select class="select" data-k="analyzer.geminiModel" style="width:auto">${UI.options(LLM.GEMINI_MODELS, a.geminiModel)}</select></div>`}
-            <div class="item"><span class="label"><b>생각 깊이</b><small>깊을수록 장면 선택이 정확하지만 느려</small></span>
+                   <div class="item"><span class="label"><b>모델</b><small><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--accent)">Google AI Studio</a>에서 무료로 키를 받을 수 있어</small></span><select class="select" data-k="analyzer.geminiModel" style="width:auto">${UI.options(LLM.GEMINI_MODELS, a.geminiModel)}</select></div>`}
+            ${a.provider === 'none' ? '' : `<div class="item"><span class="label"><b>생각 깊이</b><small>깊을수록 장면 선택이 정확하지만 느려</small></span>
               <select class="select" data-k="analyzer.thinking" style="width:auto">${UI.options([['auto', '자동'], ['fast', '빠르게'], ['normal', '보통'], ['deep', '깊게']], a.thinking)}</select></div>
-            <div class="item"><span class="label" data-llm-status><small>키와 모델이 맞는지 짧은 요청으로 확인해</small></span><button class="btn" data-act="test-llm">확인</button></div>
+            <div class="item"><span class="label" data-llm-status><small>키와 모델이 맞는지 짧은 요청으로 확인해</small></span><button class="btn" data-act="test-llm">확인</button></div>`}
           </div>
           <p class="footnote">키는 Tampermonkey/Violentmonkey 저장소에 저장돼. 탭을 여러 개 열어도 다른 탭이 지우지 않아. 스크립트를 지우고 새로 설치하면 저장소도 같이 지워지니까, 업데이트는 설치된 스크립트를 덮어쓰는 방식으로 해줘.</p>`;
+    }
+
+    const KEY_SHAPE = { naiKey: /^pst-/, geminiKey: /^AIza/, deepseekKey: /^sk-/ };
+    const KEY_NAME = { naiKey: 'NovelAI 토큰(pst-…)', geminiKey: 'Gemini 키(AIza…)', deepseekKey: 'DeepSeek 키(sk-…)' };
+    function keyOwner(v) { return Object.keys(KEY_SHAPE).find(f => KEY_SHAPE[f].test(v)) || null; }
+    function keyHint(field, v) {
+        if (!v) return '아직 없음';
+        const owner = keyOwner(v);
+        if (owner && owner !== field) return `<span style="color:var(--red)">이건 ${KEY_NAME[owner]}야. 여기엔 ${KEY_NAME[field]}를 넣어야 해.</span>`;
+        if (!owner) return `<span style="color:var(--orange)">저장됨 · 보통 ${KEY_NAME[field].replace(/.*\((.*)\)/, '$1')} 로 시작하는데 형식이 달라</span>`;
+        return '저장됨 · 이 브라우저의 확장 프로그램 저장소에만 있어';
+    }
+
+    // 붙여넣은 키를 저장. 다른 칸의 키 모양이면 맞는 칸으로 옮긴다.
+    const lastKey = {};
+    function saveKey(field, raw) {
+        const v = String(raw || '').replace(/^Bearer\s+/i, '').replace(/\s+/g, '');
+        if (lastKey[field] === v) return;
+        lastKey[field] = v;
+        const owner = keyOwner(v);
+        if (owner && owner !== field) {
+            Store.setSecret(owner, v);
+            // 이 칸에 원래 있던 값도 다른 서비스 키였다면 지운다
+            const cur = Store.secrets()[field];
+            if (cur && keyOwner(cur) && keyOwner(cur) !== field) Store.setSecret(field, '');
+            UI.toast({ title: `${KEY_NAME[owner]}이라 그 칸에 넣었어`, body: `${KEY_NAME[field]} 칸에는 그 서비스의 키를 따로 넣어줘.`, kind: 'ok' });
+            render();
+            return;
+        }
+        Store.setSecret(field, v);
+        const hint = win?.el.querySelector(`[data-key-hint="${field}"]`);
+        if (hint) hint.innerHTML = keyHint(field, v);
     }
 
     // ── 스타일 ───────────────────────────────────────────
@@ -2845,6 +3125,12 @@ const Settings = (() => {
             ${s.characters.length ? s.characters.map(c => `<div class="item"><span class="label"><b>${esc(c.name)}</b><small class="mono">${esc(Core.joinTags([c.look, c.outfit]).slice(0, 70))}</small></span>${UI.switchHtml(`room-${c.id}`, inRoom.has(c.id))}</div>`).join('')
               : `<div class="item"><span class="label muted">등록한 인물이 없어.</span><button class="btn" data-act="goto-chars">캐릭터 등록</button></div>`}
           </div>
+          <div class="section-title">인원</div>
+          <div class="group">
+            <div class="item"><span class="label"><b>그릴 인원</b><small>기본값: ${esc({ auto: '자동', 1: '1명', 2: '최대 2명', 3: '최대 3명' }[s.scene.people] || '자동')}</small></span>${UI.seg('room-people', [['default', '기본값'], ['auto', '자동'], ['1', '1명'], ['2', '최대 2명']], String(room.people || 'default'))}</div>
+            <div class="item"><span class="label"><b>꼭 그릴 인물</b><small>인원을 1명으로 하면 이 인물을 그려 · 자동이면 AI가 장면의 중심 인물을 골라</small></span>
+              <select class="select" data-room="focus" style="width:auto">${UI.options([['', '자동'], ...s.characters.filter(c => inRoom.has(c.id)).map(c => [c.id, c.name])], room.focus || '')}</select></div>
+          </div>
           <div class="section-title">세계관 · 장소 메모</div>
           <div class="group"><div class="item col"><textarea class="ta" data-room="note" placeholder="예: 1920년대 경성. 주인공 집은 한옥, 카페는 서양식 인테리어.">${val(room.note)}</textarea></div></div>
           <p class="footnote">장면 분석 AI에게 참고로 줘. 프롬프트에 그대로 들어가지는 않아.</p>
@@ -2861,6 +3147,10 @@ const Settings = (() => {
         const ucOpts = [[2, '없음'], ...Object.keys(NAI.ucTable(s.model)).map(k => [k, NAI.UC_LABELS[k]])];
         const num = (k, label, step, sub = '') => `<div class="item"><span class="label"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span><input class="field num mono" type="number" step="${step}" data-k="gen.${k}" data-num value="${val(g[k])}"></div>`;
         return `
+          <div class="section-title">인원</div>
+          <div class="group">
+            <div class="item"><span class="label"><b>그릴 인원</b><small>1명이면 장면의 중심 인물 한 명만 solo로 그려. 채팅방마다 따로 정할 수도 있어.</small></span>${UI.seg('people', [['auto', '자동'], ['1', '1명'], ['2', '최대 2명'], ['3', '최대 3명']], String(s.scene.people))}</div>
+          </div>
           <div class="section-title">모델</div>
           <div class="group">
             <div class="item"><span class="label"><b>NovelAI 모델</b><small>${v5 ? 'V5: 캐릭터 칸이 베이스 예산과 따로 · 최대 22명' : 'V4.5: 베이스+캐릭터 합산 512토큰 · 최대 6명'}</small></span>
@@ -2889,20 +3179,44 @@ const Settings = (() => {
 
     // ── 저장 공간 ────────────────────────────────────────
     function storagePane() {
+        const f = Store.settings().folder;
         return `
+          <div class="section-title">내 컴퓨터 폴더</div>
+          <div class="group">
+            ${Folder.supported ? `
+            <div class="item"><span class="label"><b>폴더에도 저장</b><small>생성할 때마다 PNG를 이 폴더에 바로 써. NovelAI 메타데이터(프롬프트·시드)도 그대로 들어 있어.</small></span>${UI.switchHtml('folder-enabled', !!f.enabled)}</div>
+            <div class="item"><span class="label"><b>저장 폴더</b><small data-folder-status>확인 중…</small></span><button class="btn" data-act="folder-pick">폴더 선택…</button><button class="btn hidden" data-act="folder-grant">다시 허용</button></div>
+            <div class="item"><span class="label"><b>채팅방마다 하위 폴더</b><small>폴더/채팅방 이름/날짜_제목_시드.png</small></span>${UI.switchHtml('folder-perRoom', f.perRoom !== false)}</div>`
+            : `<div class="item"><span class="label"><b>이 브라우저는 폴더 지정을 지원하지 않아</b><small>Chrome · Edge · Whale 에서 쓸 수 있어. 대신 생성할 때마다 다운로드 폴더로 받을 수 있어.</small></span></div>`}
+            <div class="item"><span class="label"><b>생성할 때마다 다운로드</b><small>${Folder.supported ? '폴더 저장을 끈 경우에만 · ' : ''}브라우저 다운로드 폴더로 받아</small></span>${UI.switchHtml('folder-download', !!f.download)}</div>
+          </div>
+          <p class="footnote">채팅 안에 보이는 삽화는 폴더 저장과 상관없이 이 브라우저(IndexedDB)에 따로 보관돼. 브라우저를 다시 열면 폴더 권한을 한 번 더 물어볼 수 있어.</p>
+
           <div class="section-title">이 브라우저</div>
           <div class="group">
             <div class="item"><span class="label"><b>사용량</b></span><span class="muted" data-usage>계산 중…</span></div>
             <div class="item"><span class="label"><b>이 채팅방 삽화</b></span><span class="muted" data-room-count>…</span><button class="btn danger" data-act="clear-room">모두 지우기</button></div>
           </div>
-          <p class="footnote">삽화는 이 브라우저의 IndexedDB에 저장돼. 다른 기기와는 공유되지 않아.</p>
+          <p class="footnote">다른 기기와는 공유되지 않아.</p>
           <div class="section-title">정보</div>
           <div class="group">
             <div class="item"><span class="label"><b>Crack Painter</b><small>버전 ${esc(VERSION)}</small></span><a class="btn" href="https://github.com/w7k4x9/crack-painter" target="_blank" rel="noopener">GitHub</a></div>
           </div>`;
     }
 
+    async function fillFolder() {
+        const el = win?.el.querySelector('[data-folder-status]');
+        if (!el) return;
+        const st = await Folder.status();
+        const grant = win.el.querySelector('[data-act="folder-grant"]');
+        if (!st.set) { el.textContent = '아직 안 골랐어'; grant?.classList.add('hidden'); return; }
+        el.innerHTML = `<b style="font-weight:500;color:var(--text)">${esc(st.name)}</b> · ${st.permission === 'granted' ? '<span style="color:var(--green)">쓰기 허용됨</span>' : '<span style="color:var(--orange)">권한 다시 필요</span>'}`;
+        grant?.classList.toggle('hidden', st.permission === 'granted');
+        win.el.querySelector('[data-act="folder-pick"]').textContent = '변경…';
+    }
+
     async function fillStorage() {
+        fillFolder();
         const u = await Store.usage();
         const el = win?.el.querySelector('[data-usage]');
         const fmt = b => b > 1e9 ? `${(b / 1e9).toFixed(1)}GB` : `${Math.round(b / 1e6)}MB`;
@@ -2933,8 +3247,16 @@ const Settings = (() => {
         });
     }
 
+    let keyTimer = 0;
     function bind() {
         const el = win.el;
+        // 키는 입력하는 즉시 저장 (Esc로 창을 닫아도 남게)
+        el.addEventListener('input', ev => {
+            const t = ev.target;
+            if (!t.dataset.secret) return;
+            clearTimeout(keyTimer);
+            keyTimer = setTimeout(() => saveKey(t.dataset.secret, t.value), 400);
+        });
         el.addEventListener('click', async ev => {
             const navBtn = ev.target.closest('[data-pane]');
             if (navBtn) { pane = navBtn.dataset.pane; selChar = null; render(); return; }
@@ -2948,6 +3270,8 @@ const Settings = (() => {
                     if (name === 'provider') d.analyzer.provider = v;
                     else if (name === 'size') d.gen.size = v;
                     else if (name === 'qualityV5') d.gen.qualityV5 = v;
+                    else if (name === 'people') d.scene.people = v;
+                    else if (name === 'room-people' && Crack.roomId()) { const r = d.rooms[Crack.roomId()] = d.rooms[Crack.roomId()] || {}; r.people = v; }
                 });
                 render();
                 return;
@@ -2956,6 +3280,18 @@ const Settings = (() => {
             if (!btn || btn.closest('.lights')) return;
             const act = btn.dataset.act;
             const roomId = Crack.roomId();
+            if (act === 'folder-pick') {
+                try {
+                    await Folder.pick();
+                    Store.update(d => { d.folder.enabled = true; });
+                    render();
+                    UI.toast({ title: '저장 폴더를 정했어', kind: 'ok', body: '다음 생성부터 이 폴더에도 저장돼.' });
+                } catch (e) {
+                    if (e?.name !== 'AbortError') App.reportError(e, '폴더를 열지 못했어');
+                }
+                return;
+            }
+            if (act === 'folder-grant') { await Folder.prime(true); fillFolder(); return; }
             if (act === 'test-nai') testNai();
             else if (act === 'test-llm') testLlm();
             else if (act === 'preset-new') {
@@ -3019,8 +3355,8 @@ render();
             const t = ev.target;
             const roomId = Crack.roomId();
             if (t.dataset.secret) {
-                Store.setSecret(t.dataset.secret, t.value);
-                UI.toast({ title: '키를 저장했어', kind: 'ok' });
+                clearTimeout(keyTimer);
+                saveKey(t.dataset.secret, t.value);
             } else if (t.dataset.k) {
                 const v = t.dataset.num !== undefined ? Number(t.value) : t.value;
                 Store.update(d => setPath(d, t.dataset.k, v));
@@ -3034,7 +3370,11 @@ render();
                 Store.update(d => { d.rooms[roomId] = { ...(d.rooms[roomId] || {}), [t.dataset.room]: t.value }; });
             } else if (t.dataset.sw) {
                 const sw = t.dataset.sw;
-                if (sw === 'qualityV45') Store.update(d => { d.gen.qualityV45 = t.checked; });
+                if (sw.startsWith('folder-')) {
+                    const key = sw.slice(7);
+                    Store.update(d => { d.folder[key] = t.checked; });
+                    if (key === 'enabled' && t.checked) Folder.status().then(st => { if (!st.set) win?.el.querySelector('[data-act="folder-pick"]')?.click(); });
+                } else if (sw === 'qualityV45') Store.update(d => { d.gen.qualityV45 = t.checked; });
                 else if (sw === 'useCoords') Store.update(d => { d.gen.useCoords = t.checked; });
                 else if (sw === 'char-room' || sw.startsWith('room-')) {
                     const id = sw === 'char-room' ? selChar : sw.slice(5);

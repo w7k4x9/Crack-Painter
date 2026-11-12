@@ -68,7 +68,16 @@ const LLM = (() => {
 - 같은 뜻의 분위기 형용사를 쌓지 않는다.${v5 ? '\n- V5 는 문장을 잘 이해한다. 태그로 손실되는 관계·배치·광원은 caption 에 영어 문장으로 쓴다. 감정 선언이나 줄거리 요약은 쓰지 않는다.' : '\n- V4.5 는 문장보다 태그가 안정적이다. caption 은 모두 빈 문자열.'}`;
     }
 
-    function userPrompt({ characters, note, context, paragraphs, fixedParagraph, request }) {
+    function peopleRule(people, focus) {
+        const n = Number(people);
+        if (!n) return '';
+        const who = focus ? ` 한 명만 그릴 때는 '${focus.name}'(id=${focus.id})를 그린다.` : '';
+        return n === 1
+            ? `[인원 · 최우선] characters 에는 정확히 1명만 넣는다. 장면의 중심 인물 한 명을 단독(solo) 구도로 그리고, 다른 인물은 화면 밖에 두거나 손·뒷모습 같은 일부도 넣지 않는다.${who}`
+            : `[인원 · 최우선] characters 는 최대 ${n}명. 중요한 순서대로 넣는다.${who}`;
+    }
+
+    function userPrompt({ characters, note, context, paragraphs, fixedParagraph, request, people, focus }) {
         const chars = characters.length
             ? characters.map(c => `- id=${c.id} | 이름=${c.name}${c.aliases?.length ? ` | 별칭=${c.aliases.join(', ')}` : ''} | 외형(참고용, 다시 쓰지 말 것)=${Core.joinTags([c.look, c.outfit]).slice(0, 200)}`).join('\n')
             : '(등록된 인물 없음 · 보이는 인물은 모두 미등록으로 look 을 채운다)';
@@ -79,6 +88,7 @@ const LLM = (() => {
             context ? `[최근 맥락 · 이전 대화]\n${context}` : '',
             `[대상 답변 · 문단 번호]\n${paras}`,
             Number.isInteger(fixedParagraph) ? `[고정] insertAfterParagraph=${fixedParagraph} 인 문단의 순간을 그린다. 다른 장면으로 옮기지 않는다.` : '',
+            peopleRule(people, focus),
             request ? `[사용자 수정 요청 · 최우선]\n${request}` : ''
         ].filter(Boolean).join('\n\n');
     }

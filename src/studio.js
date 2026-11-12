@@ -92,6 +92,7 @@ const Studio = (() => {
         const assembled = Core.assemble(sess.state, sess.model);
         if (!assembled.base && !assembled.chars.length) return App.reportError(new Error('프롬프트가 비어 있어.'));
         if (App.running.has(sess.messageKey)) return UI.toast({ title: '이 답변은 이미 생성 중이야' });
+        Folder.prime();
         sess.controller = new AbortController();
         App.running.set(sess.messageKey, { controller: sess.controller });
         sess.status = 'generating';

@@ -98,7 +98,7 @@ const UI = (() => {
         el.setAttribute('aria-label', title);
         el.innerHTML = `
             <div class="titlebar" data-drag>
-              <div class="left"><div class="lights"><i data-act="close" title="닫기">${icons.x}</i><i data-act="min" title="내리기">${icons.minus}</i><i data-act="zoom" title="크게">${icons.zoom}</i></div><span class="tb-left"></span></div>
+              <div class="left"><div class="lights"><i data-act="close" aria-label="닫기"></i><i data-act="min" aria-label="내리기"></i><i data-act="zoom" aria-label="크게"></i></div><span class="tb-left"></span></div>
               <div class="title"><b></b><small></small></div>
               <div class="right"></div>
             </div>

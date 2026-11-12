@@ -108,10 +108,8 @@ svg { display: block; }
 .lights i:nth-child(1) { background: #ff5f57; }
 .lights i:nth-child(2) { background: #febc2e; }
 .lights i:nth-child(3) { background: #28c840; }
-.lights i svg { width: 8px; height: 8px; opacity: 0; color: rgba(0,0,0,.6); }
-.lights:hover i svg { opacity: 1; }
+.lights i:hover { filter: brightness(.92); }
 .lights i.off { background: var(--track) !important; cursor: default; }
-.lights i.off svg { display: none; }
 
 /* ── 컨트롤 ─────────────────────────────────────────── */
 .btn {
@@ -121,6 +119,7 @@ svg { display: block; }
   font-size: 13px; font-weight: 500; white-space: nowrap; cursor: default;
 }
 .btn:hover { background: var(--btn-hover); }
+a.btn { text-decoration: none; color: inherit; }
 .btn:active { filter: brightness(.94); }
 .btn:disabled { opacity: .45; pointer-events: none; }
 .btn svg { width: 14px; height: 14px; }
