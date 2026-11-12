@@ -291,6 +291,11 @@ const Store = (() => {
         return reqP(d.transaction('records').objectStore('records').index('room').getAll(roomId));
     }
 
+    async function allRecords() {
+        const d = await db();
+        return reqP(d.transaction('records').objectStore('records').getAll());
+    }
+
     async function putRecord(rec) {
         rec.key = recKey(rec.roomId, rec.messageKey);
         rec.updatedAt = Date.now();
@@ -327,5 +332,5 @@ const Store = (() => {
         }
     }
 
-    return { on, emit, settings, update, secrets, setSecret, roomChars, uid, putImage, getImage, deleteImage, getRecord, roomRecords, putRecord, deleteRecord, usage, getMeta, setMeta };
+    return { on, emit, settings, update, secrets, setSecret, roomChars, uid, putImage, getImage, deleteImage, getRecord, roomRecords, putRecord, deleteRecord, usage, getMeta, setMeta, allRecords };
 })();

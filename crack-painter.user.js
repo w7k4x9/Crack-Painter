@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Crack Painter
 // @namespace    https://github.com/w7k4x9/crack-painter
-// @version      1.1.1
+// @version      1.2.0
 // @description  크랙(crack.wrtn.ai) 채팅 장면을 NovelAI 삽화로. 작가·화풍은 베이스, 인물은 캐릭터 칸으로 정확히 나눠 보냄.
 // @author       w7k4x9
 // @match        https://crack.wrtn.ai/*
@@ -26,9 +26,9 @@
 (function () {
     'use strict';
 
-const VERSION = "1.1.1";
+const VERSION = "1.2.0";
 
-const UI_CSS = "/* ── Crack Painter · macOS 스타일 (Shadow DOM 안) ───────────── */\n:host { all: initial; }\n.root {\n  --font: -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Apple SD Gothic Neo\", \"Pretendard Variable\", Pretendard, \"Noto Sans KR\", system-ui, sans-serif;\n  --mono: ui-monospace, \"SF Mono\", Menlo, Consolas, monospace;\n  --accent: #007aff;\n  --accent-press: #0062cc;\n  --accent-soft: rgba(0,122,255,.14);\n  --ring: rgba(0,122,255,.38);\n  --text: #1d1d1f;\n  --text2: #6e6e73;\n  --text3: #a1a1a6;\n  --win: rgba(246,246,248,.92);\n  --win-solid: #f6f6f8;\n  --bar: rgba(236,236,240,.78);\n  --side: rgba(232,232,237,.72);\n  --group: #ffffff;\n  --field: #ffffff;\n  --btn: #ffffff;\n  --btn-hover: #f4f4f6;\n  --sep: rgba(0,0,0,.09);\n  --sep-strong: rgba(0,0,0,.16);\n  --track: rgba(0,0,0,.065);\n  --hover: rgba(0,0,0,.045);\n  --shadow: 0 0 0 .5px rgba(0,0,0,.22), 0 24px 70px rgba(0,0,0,.28), 0 4px 14px rgba(0,0,0,.12);\n  --ctl-shadow: 0 .5px 1.5px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.08);\n  --red: #ff3b30; --orange: #ff9500; --green: #28cd41; --yellow: #ffcc00; --purple: #af52de; --teal: #30b0c7; --pink: #ff2d55;\n  --stage: #e9e9ee;\n  font-family: var(--font);\n  font-size: 13px;\n  line-height: 1.38;\n  color: var(--text);\n  -webkit-font-smoothing: antialiased;\n  letter-spacing: -.003em;\n}\n.root.dark {\n  --accent: #0a84ff;\n  --accent-press: #409cff;\n  --accent-soft: rgba(10,132,255,.22);\n  --ring: rgba(10,132,255,.5);\n  --text: #f5f5f7;\n  --text2: #a1a1a6;\n  --text3: #6e6e73;\n  --win: rgba(36,36,40,.9);\n  --win-solid: #242428;\n  --bar: rgba(44,44,48,.82);\n  --side: rgba(40,40,44,.7);\n  --group: rgba(255,255,255,.055);\n  --field: rgba(255,255,255,.07);\n  --btn: rgba(255,255,255,.12);\n  --btn-hover: rgba(255,255,255,.17);\n  --sep: rgba(255,255,255,.08);\n  --sep-strong: rgba(255,255,255,.16);\n  --track: rgba(255,255,255,.09);\n  --hover: rgba(255,255,255,.06);\n  --shadow: 0 0 0 .5px rgba(255,255,255,.12), 0 0 0 1px rgba(0,0,0,.6), 0 24px 70px rgba(0,0,0,.55);\n  --ctl-shadow: 0 0 0 .5px rgba(255,255,255,.06), 0 1px 1px rgba(0,0,0,.3);\n  --red: #ff453a; --orange: #ff9f0a; --green: #32d74b; --yellow: #ffd60a; --purple: #bf5af2; --teal: #40c8e0; --pink: #ff375f;\n  --stage: #1b1b1e;\n}\n*, *::before, *::after { box-sizing: border-box; }\nbutton, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }\nsvg { display: block; }\n.hidden { display: none !important; }\n\n/* ── 창 ─────────────────────────────────────────────── */\n.layer { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; }\n.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.18); pointer-events: auto; animation: fade .18s ease; }\n.root.dark .scrim { background: rgba(0,0,0,.35); }\n.win {\n  position: fixed; pointer-events: auto;\n  display: flex; flex-direction: column;\n  background: var(--win);\n  -webkit-backdrop-filter: blur(40px) saturate(180%);\n  backdrop-filter: blur(40px) saturate(180%);\n  border-radius: 12px;\n  box-shadow: var(--shadow);\n  overflow: hidden;\n  animation: pop .22s cubic-bezier(.2,.9,.3,1.1);\n  min-width: 320px; min-height: 240px;\n}\n.win.zoomed { inset: 12px !important; width: auto !important; height: auto !important; }\n.win.inactive .lights i { background: var(--track); border-color: transparent; }\n@keyframes pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }\n@keyframes fade { from { opacity: 0; } }\n\n.titlebar {\n  flex: none; height: 52px;\n  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;\n  padding: 0 14px 0 16px;\n  background: var(--bar);\n  border-bottom: .5px solid var(--sep-strong);\n  user-select: none; cursor: default;\n  touch-action: none;\n}\n.titlebar.sidebar-bar { background: transparent; border-bottom: 0; }\n.titlebar .left, .titlebar .right { display: flex; align-items: center; gap: 8px; min-width: 0; }\n.titlebar .right .select { max-width: 170px; }\n.titlebar .right { justify-content: flex-end; }\n.title { text-align: center; min-width: 0; }\n.title b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.title small { display: block; font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }\n.lights { display: flex; gap: 8px; margin-right: 6px; }\n.lights i {\n  width: 12px; height: 12px; border-radius: 50%; display: grid; place-items: center;\n  border: .5px solid rgba(0,0,0,.18); cursor: pointer; position: relative;\n}\n.lights i:nth-child(1) { background: #ff5f57; }\n.lights i:nth-child(2) { background: #febc2e; }\n.lights i:nth-child(3) { background: #28c840; }\n.lights i:hover { filter: brightness(.92); }\n.lights i.off { background: var(--track) !important; cursor: default; }\n\n/* ── 컨트롤 ─────────────────────────────────────────── */\n.btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: 5px;\n  height: 24px; padding: 0 10px; border-radius: 6px; border: 0;\n  background: var(--btn); box-shadow: var(--ctl-shadow);\n  font-size: 13px; font-weight: 500; white-space: nowrap; cursor: default;\n}\n.btn:hover { background: var(--btn-hover); }\na.btn { text-decoration: none; color: inherit; }\n.btn:active { filter: brightness(.94); }\n.btn:disabled { opacity: .45; pointer-events: none; }\n.btn svg { width: 14px; height: 14px; }\n.btn.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent)); color: #fff; box-shadow: 0 .5px 1px rgba(0,0,0,.25), inset 0 .5px 0 rgba(255,255,255,.25); }\n.btn.primary:hover { background: var(--accent); }\n.btn.danger { color: var(--red); }\n.btn.lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }\n.btn.ghost { background: transparent; box-shadow: none; }\n.btn.ghost:hover { background: var(--hover); }\n.icon-btn {\n  width: 28px; height: 28px; border-radius: 6px; border: 0; background: transparent;\n  display: inline-grid; place-items: center; color: var(--text2); cursor: default;\n}\n.icon-btn:hover { background: var(--hover); color: var(--text); }\n.icon-btn svg { width: 16px; height: 16px; }\n.icon-btn.sm { width: 22px; height: 22px; } .icon-btn.sm svg { width: 13px; height: 13px; }\n.kbd { font-size: 11px; opacity: .75; margin-left: 2px; }\n\n.field, .ta, .select {\n  width: 100%; border: 0; outline: 0;\n  background: var(--field); box-shadow: var(--ctl-shadow);\n  border-radius: 6px; padding: 4px 8px; min-height: 24px;\n  transition: box-shadow .12s;\n}\n.field:focus, .ta:focus, .select:focus { box-shadow: 0 0 0 .5px var(--accent), 0 0 0 3.5px var(--ring); }\n.field::placeholder, .ta::placeholder { color: var(--text3); }\n.ta { display: block; resize: vertical; min-height: 54px; padding: 6px 8px; font-size: 12.5px; line-height: 1.45; font-family: var(--font); }\n.ta.mono, .field.mono { font-family: var(--mono); font-size: 12px; }\n.ta.short { min-height: 38px; }\n.select {\n  appearance: none; -webkit-appearance: none; padding-right: 26px; cursor: default; height: 24px; min-height: 0;\n  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1 4.5 4 1.5l3 3M1 7.5l3 3 3-3' fill='none' stroke='%23888' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");\n  background-repeat: no-repeat; background-position: right 8px center;\n}\n.root.dark .select option { background: #2c2c30; }\n.field.num { width: 72px; text-align: right; font-variant-numeric: tabular-nums; }\n\n.seg { display: inline-flex; background: var(--track); border-radius: 7px; padding: 2px; gap: 2px; }\n.seg button {\n  border: 0; background: transparent; height: 20px; padding: 0 10px; border-radius: 5px;\n  font-size: 12px; font-weight: 500; color: var(--text); cursor: default; white-space: nowrap;\n}\n.seg button.on { background: var(--btn); box-shadow: var(--ctl-shadow); }\n.root.dark .seg button.on { background: rgba(255,255,255,.2); }\n.seg.sm button { padding: 0 7px; font-size: 11px; height: 18px; }\n\n.switch { position: relative; width: 32px; height: 19px; flex: none; }\n.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: default; z-index: 1; }\n.switch span { position: absolute; inset: 0; border-radius: 99px; background: var(--track); box-shadow: inset 0 0 0 .5px var(--sep); transition: background .2s; }\n.switch span::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s cubic-bezier(.3,.7,.4,1.2); }\n.switch input:checked + span { background: var(--accent); }\n.switch input:checked + span::after { transform: translateX(13px); }\n\n.badge { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 5px; font-size: 10.5px; font-weight: 600; background: var(--track); color: var(--text2); white-space: nowrap; }\n.badge.blue { background: var(--accent-soft); color: var(--accent); }\n.badge.orange { background: color-mix(in srgb, var(--orange) 18%, transparent); color: var(--orange); }\n.badge.green { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }\n.badge.red { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }\n.muted { color: var(--text2); }\n.tiny { font-size: 11px; }\n.grow { flex: 1; }\n.row { display: flex; align-items: center; gap: 8px; }\n.stack { display: flex; flex-direction: column; gap: 6px; }\n\n/* 스크롤 */\n.scroll { overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--sep-strong) transparent; }\n.scroll::-webkit-scrollbar { width: 10px; height: 10px; }\n.scroll::-webkit-scrollbar-thumb { background: var(--sep-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }\n\n/* ── 그룹 리스트 (시스템 설정 스타일) ─────────────────── */\n.section-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: none; margin: 18px 4px 6px; display: flex; align-items: center; gap: 6px; }\n.section-title:first-child { margin-top: 0; }\n.section-title .grow + * { font-weight: 500; }\n.group { background: var(--group); border-radius: 10px; box-shadow: 0 0 0 .5px var(--sep); }\n.group > .item { padding: 9px 12px; display: flex; align-items: center; gap: 10px; min-height: 40px; position: relative; }\n.group > .item + .item::before { content: ''; position: absolute; top: 0; left: 12px; right: 0; border-top: .5px solid var(--sep); }\n.group > .item.col { flex-direction: column; align-items: stretch; gap: 6px; }\n.item .label { flex: 1; min-width: 0; }\n.item .label b { font-weight: 500; display: block; }\n.item .label small { display: block; color: var(--text2); font-size: 11.5px; margin-top: 1px; }\n.footnote { color: var(--text2); font-size: 11.5px; margin: 6px 4px 0; line-height: 1.45; }\n.footnote code, .help code { font-family: var(--mono); font-size: 11px; background: var(--track); padding: 0 4px; border-radius: 4px; }\n\n/* ── 스튜디오 ─────────────────────────────────────── */\n.studio { width: min(1180px, calc(100vw - 32px)); height: min(820px, calc(100vh - 32px)); }\n.studio .body { flex: 1; display: grid; grid-template-columns: minmax(300px, 1fr) minmax(380px, 460px); min-height: 0; }\n.stage { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--stage); border-right: .5px solid var(--sep-strong); }\n.canvas { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; overflow: hidden; }\n.canvas img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,.18), 0 0 0 .5px var(--sep); cursor: zoom-in; }\n.placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text3); text-align: center; max-width: 280px; }\n.placeholder svg { width: 44px; height: 44px; opacity: .6; }\n.placeholder b { color: var(--text2); font-weight: 600; font-size: 14px; }\n.busy {\n  position: absolute; inset: 0; display: grid; place-items: center;\n  background: color-mix(in srgb, var(--stage) 55%, transparent);\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n}\n.busy .card { background: var(--win); border-radius: 14px; box-shadow: var(--shadow); padding: 18px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 220px; }\n.spinner { width: 22px; height: 22px; position: relative; }\n.spinner i { position: absolute; left: 10px; top: 1px; width: 2.2px; height: 6px; border-radius: 2px; background: var(--text2); transform-origin: 1.1px 10px; animation: spin 1s linear infinite; }\n@keyframes spin { 0% { opacity: 1; } 100% { opacity: .15; } }\n.film { flex: none; display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; border-top: .5px solid var(--sep); align-items: center; background: var(--bar); }\n.film .thumb { flex: none; width: 46px; height: 46px; border-radius: 7px; overflow: hidden; border: 0; padding: 0; background: var(--track); box-shadow: 0 0 0 .5px var(--sep); cursor: default; position: relative; }\n.film .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }\n.film .thumb.on { box-shadow: 0 0 0 2px var(--accent); }\n.film .thumb .pin { position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; }\n.film .thumb .pin svg { width: 8px; height: 8px; }\n.film .tools { display: flex; gap: 2px; margin-left: auto; }\n\n.inspector { display: flex; flex-direction: column; min-height: 0; background: var(--win); }\n.inspector .content { flex: 1; padding: 14px 16px 24px; }\n.inspector .footer { flex: none; border-top: .5px solid var(--sep-strong); background: var(--bar); padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }\n\n.moment { font-size: 12.5px; color: var(--text2); padding: 2px 4px 0; }\n.slot { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 7px; }\n.slot + .slot { border-top: .5px solid var(--sep); }\n.slot-head { display: flex; align-items: center; gap: 7px; min-height: 22px; }\n.slot-head .name { font-weight: 600; font-size: 13px; }\n.slot-head .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }\n.slot-head .tok { margin-left: auto; font-variant-numeric: tabular-nums; }\n.slot .sub { font-size: 11px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; }\n.slot.off > :not(.slot-head) { display: none; }\n.slot.off .name { color: var(--text3); }\n.where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text2); font-weight: 600; letter-spacing: .02em; }\n.where svg { width: 11px; height: 11px; }\n\n.notes { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }\n.note { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; padding: 8px 10px; border-radius: 8px; background: var(--group); box-shadow: 0 0 0 .5px var(--sep); }\n.note svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--accent); }\n.note.warn svg { color: var(--orange); }\n.note.error svg { color: var(--red); }\n\ndetails.raw { margin-top: 12px; }\ndetails.raw summary { cursor: default; font-size: 11px; font-weight: 600; color: var(--text2); list-style: none; display: flex; align-items: center; gap: 4px; padding: 4px; }\ndetails.raw summary::-webkit-details-marker { display: none; }\ndetails.raw summary svg { width: 10px; height: 10px; transition: transform .15s; }\ndetails.raw[open] summary svg { transform: rotate(90deg); }\ndetails.raw pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 11px; line-height: 1.5; background: var(--group); box-shadow: 0 0 0 .5px var(--sep); border-radius: 8px; padding: 10px 12px; max-height: 320px; overflow: auto; }\ndetails.raw pre .k { color: var(--purple); }\n\n.meter { display: flex; flex-direction: column; gap: 4px; }\n.meter .bar { height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; display: flex; }\n.meter .bar i { height: 100%; display: block; }\n.meter .bar i + i { box-shadow: -1px 0 0 var(--win-solid); }\n.meter .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }\n.meter .legend span { display: inline-flex; align-items: center; gap: 4px; }\n.meter .legend span::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }\n.meter .legend .total { margin-left: auto; font-weight: 600; color: var(--text); }\n.meter.over .legend .total { color: var(--red); }\n.c-style { --c: var(--purple); } .c-scene { --c: var(--accent); }\n.c-0 { --c: var(--orange); } .c-1 { --c: var(--green); } .c-2 { --c: var(--pink); } .c-3 { --c: var(--teal); } .c-4 { --c: var(--yellow); } .c-5 { --c: #8e8e93; }\n\n/* 팝오버 메뉴 */\n.menu { position: fixed; pointer-events: auto; min-width: 200px; max-width: 320px; max-height: 60vh; overflow: auto; padding: 5px; border-radius: 9px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); z-index: 5; animation: fade .1s; }\n.menu button { display: flex; width: 100%; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent; padding: 4px 10px; border-radius: 5px; font-size: 13px; cursor: default; min-height: 24px; }\n.menu button:hover { background: var(--accent); color: #fff; }\n.menu button:hover small { color: rgba(255,255,255,.8); }\n.menu button small { color: var(--text2); font-size: 11px; display: block; }\n.menu hr { border: 0; border-top: .5px solid var(--sep-strong); margin: 4px 8px; }\n.menu .hd { font-size: 11px; font-weight: 600; color: var(--text2); padding: 4px 10px 2px; }\n\n/* ── 설정 ─────────────────────────────────────────── */\n.settings { width: min(860px, calc(100vw - 32px)); height: min(640px, calc(100vh - 32px)); }\n.settings .body { flex: 1; display: grid; grid-template-columns: 210px 1fr; min-height: 0; }\n.settings .side { background: var(--side); border-right: .5px solid var(--sep-strong); display: flex; flex-direction: column; min-height: 0; }\n.settings .side .titlebar { background: transparent; border: 0; grid-template-columns: auto 1fr; }\n.settings .nav { padding: 4px 10px 12px; display: flex; flex-direction: column; gap: 1px; }\n.settings .nav button { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; height: 30px; padding: 0 8px; border-radius: 6px; font-size: 13px; text-align: left; cursor: default; }\n.settings .nav button:hover { background: var(--hover); }\n.settings .nav button.on { background: var(--accent); color: #fff; }\n.settings .nav .ic { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; color: #fff; flex: none; }\n.settings .nav .ic svg { width: 12px; height: 12px; }\n.settings .main { display: flex; flex-direction: column; min-height: 0; }\n.settings .main .titlebar { grid-template-columns: auto 1fr auto; }\n.settings .main .titlebar .title { text-align: left; }\n.settings .main .titlebar .title b { font-size: 15px; font-weight: 700; }\n.settings .pane { flex: 1; padding: 6px 24px 28px; }\n.side .search { margin: 0 10px 8px; }\n.char-list { display: flex; flex-direction: column; }\n.char-list button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; text-align: left; padding: 8px 12px; cursor: default; position: relative; }\n.char-list button + button::before { content: ''; position: absolute; top: 0; left: 46px; right: 0; border-top: .5px solid var(--sep); }\n.char-list button:hover { background: var(--hover); }\n.char-list button:first-child { border-radius: 10px 10px 0 0; } .char-list button:last-child { border-radius: 0 0 10px 10px; }\n.avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 12px; flex: none; }\n.char-list .meta { flex: 1; min-width: 0; }\n.char-list .meta b { display: block; font-weight: 500; }\n.char-list .meta small { display: block; color: var(--text2); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.chev { width: 8px; height: 13px; color: var(--text3); flex: none; }\n.kv { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; }\n\n/* ── 알림 (macOS Notification) ───────────────────── */\n.toasts { position: fixed; top: 14px; right: 14px; display: flex; flex-direction: column; gap: 8px; width: min(356px, calc(100vw - 28px)); pointer-events: none; z-index: 10; }\n.toast {\n  pointer-events: auto; display: flex; gap: 10px; align-items: flex-start;\n  padding: 11px 12px; border-radius: 16px;\n  background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);\n  box-shadow: var(--shadow);\n  animation: slide .32s cubic-bezier(.2,.9,.3,1.1);\n}\n.toast.leaving { animation: out .2s ease forwards; }\n@keyframes slide { from { opacity: 0; transform: translateX(30px); } }\n@keyframes out { to { opacity: 0; transform: translateX(30px); } }\n.toast .app { width: 32px; height: 32px; border-radius: 8px; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }\n.toast .app svg { width: 18px; height: 18px; }\n.toast .app.err { background: linear-gradient(135deg, #ff6a5c, #ff3b30); }\n.toast .app.ok { background: linear-gradient(135deg, #5ee07a, #28c840); }\n.toast .txt { flex: 1; min-width: 0; }\n.toast .txt b { display: block; font-size: 13px; font-weight: 600; }\n.toast .txt p { margin: 1px 0 0; font-size: 12.5px; color: var(--text2); word-break: break-word; }\n.toast .acts { display: flex; gap: 6px; margin-top: 8px; }\n.toast .prog { height: 3px; border-radius: 99px; background: var(--track); overflow: hidden; margin-top: 8px; }\n.toast .prog i { display: block; height: 100%; width: 40%; background: var(--accent); border-radius: 99px; animation: indet 1.2s ease-in-out infinite; }\n@keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }\n.toast .x { opacity: 0; transition: opacity .15s; margin: -4px -4px 0 0; }\n.toast:hover .x { opacity: 1; }\n\n/* 미니 독 (노란 버튼으로 숨긴 창) */\n.dock { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); pointer-events: auto; animation: pop .2s; }\n.dock button { border: 0; background: transparent; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 11px; cursor: default; font-size: 12.5px; font-weight: 500; }\n.dock button:hover { background: var(--hover); }\n.dock .app { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }\n.dock .app svg { width: 15px; height: 15px; }\n\n/* 라이트박스 */\n.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: grid; place-items: center; pointer-events: auto; animation: fade .15s; cursor: zoom-out; }\n.lightbox img { max-width: 94vw; max-height: 94vh; border-radius: 6px; }\n\n/* ── 좁은 화면: 시트처럼 꽉 채움 ─────────────────── */\n@media (max-width: 760px) {\n  .win { inset: 0 !important; width: auto !important; height: auto !important; border-radius: 0; }\n  .studio .body { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 42%) 1fr; }\n  .stage { border-right: 0; border-bottom: .5px solid var(--sep-strong); }\n  .settings .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }\n  .settings .side { border-right: 0; border-bottom: .5px solid var(--sep-strong); }\n  .settings .side .titlebar { display: none; }\n  .settings .nav { flex-direction: row; overflow-x: auto; padding: 8px; }\n  .settings .nav button { flex: none; }\n  .settings .pane { padding: 6px 14px 24px; }\n  .kv { grid-template-columns: 1fr; gap: 4px; }\n  .titlebar { padding: 0 10px; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; }\n  .titlebar .title { text-align: left; }\n  .titlebar .title small { display: none; }\n  .titlebar .right .select { max-width: 116px; }\n  .lights { margin-right: 0; }\n  .slot-head .muted.tiny { display: none; }\n  .kbd { display: none; }\n  .inspector .content { padding: 12px 12px 20px; }\n}\n";
+const UI_CSS = "/* ── Crack Painter · macOS 스타일 (Shadow DOM 안) ───────────── */\n:host { all: initial; }\n.root {\n  --font: -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Apple SD Gothic Neo\", \"Pretendard Variable\", Pretendard, \"Noto Sans KR\", system-ui, sans-serif;\n  --mono: ui-monospace, \"SF Mono\", Menlo, Consolas, monospace;\n  --accent: #007aff;\n  --accent-press: #0062cc;\n  --accent-soft: rgba(0,122,255,.14);\n  --ring: rgba(0,122,255,.38);\n  --text: #1d1d1f;\n  --text2: #6e6e73;\n  --text3: #a1a1a6;\n  --win: rgba(246,246,248,.92);\n  --win-solid: #f6f6f8;\n  --bar: rgba(236,236,240,.78);\n  --side: rgba(232,232,237,.72);\n  --group: #ffffff;\n  --field: #ffffff;\n  --btn: #ffffff;\n  --btn-hover: #f4f4f6;\n  --sep: rgba(0,0,0,.09);\n  --sep-strong: rgba(0,0,0,.16);\n  --track: rgba(0,0,0,.065);\n  --hover: rgba(0,0,0,.045);\n  --shadow: 0 0 0 .5px rgba(0,0,0,.22), 0 24px 70px rgba(0,0,0,.28), 0 4px 14px rgba(0,0,0,.12);\n  --ctl-shadow: 0 .5px 1.5px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.08);\n  --red: #ff3b30; --orange: #ff9500; --green: #28cd41; --yellow: #ffcc00; --purple: #af52de; --teal: #30b0c7; --pink: #ff2d55;\n  --stage: #e9e9ee;\n  font-family: var(--font);\n  font-size: 13px;\n  line-height: 1.38;\n  color: var(--text);\n  -webkit-font-smoothing: antialiased;\n  letter-spacing: -.003em;\n}\n.root.dark {\n  --accent: #0a84ff;\n  --accent-press: #409cff;\n  --accent-soft: rgba(10,132,255,.22);\n  --ring: rgba(10,132,255,.5);\n  --text: #f5f5f7;\n  --text2: #a1a1a6;\n  --text3: #6e6e73;\n  --win: rgba(36,36,40,.9);\n  --win-solid: #242428;\n  --bar: rgba(44,44,48,.82);\n  --side: rgba(40,40,44,.7);\n  --group: rgba(255,255,255,.055);\n  --field: rgba(255,255,255,.07);\n  --btn: rgba(255,255,255,.12);\n  --btn-hover: rgba(255,255,255,.17);\n  --sep: rgba(255,255,255,.08);\n  --sep-strong: rgba(255,255,255,.16);\n  --track: rgba(255,255,255,.09);\n  --hover: rgba(255,255,255,.06);\n  --shadow: 0 0 0 .5px rgba(255,255,255,.12), 0 0 0 1px rgba(0,0,0,.6), 0 24px 70px rgba(0,0,0,.55);\n  --ctl-shadow: 0 0 0 .5px rgba(255,255,255,.06), 0 1px 1px rgba(0,0,0,.3);\n  --red: #ff453a; --orange: #ff9f0a; --green: #32d74b; --yellow: #ffd60a; --purple: #bf5af2; --teal: #40c8e0; --pink: #ff375f;\n  --stage: #1b1b1e;\n}\n*, *::before, *::after { box-sizing: border-box; }\nbutton, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }\nsvg { display: block; }\n.hidden { display: none !important; }\n\n/* ── 창 ─────────────────────────────────────────────── */\n.layer { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; }\n.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.18); pointer-events: auto; animation: fade .18s ease; }\n.root.dark .scrim { background: rgba(0,0,0,.35); }\n.win {\n  position: fixed; pointer-events: auto;\n  display: flex; flex-direction: column;\n  background: var(--win);\n  -webkit-backdrop-filter: blur(40px) saturate(180%);\n  backdrop-filter: blur(40px) saturate(180%);\n  border-radius: 12px;\n  box-shadow: var(--shadow);\n  overflow: hidden;\n  animation: pop .22s cubic-bezier(.2,.9,.3,1.1);\n  min-width: 320px; min-height: 240px;\n}\n.win.zoomed { inset: 12px !important; width: auto !important; height: auto !important; }\n.win.inactive .lights i { background: var(--track); border-color: transparent; }\n@keyframes pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }\n@keyframes fade { from { opacity: 0; } }\n\n.titlebar {\n  flex: none; height: 52px;\n  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;\n  padding: 0 14px 0 16px;\n  background: var(--bar);\n  border-bottom: .5px solid var(--sep-strong);\n  user-select: none; cursor: default;\n  touch-action: none;\n}\n.titlebar.sidebar-bar { background: transparent; border-bottom: 0; }\n.titlebar .left, .titlebar .right { display: flex; align-items: center; gap: 8px; min-width: 0; }\n.titlebar .right .select { max-width: 170px; }\n.titlebar .right { justify-content: flex-end; }\n.title { text-align: center; min-width: 0; }\n.title b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.title small { display: block; font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }\n.lights { display: flex; gap: 8px; margin-right: 6px; }\n.lights i {\n  width: 12px; height: 12px; border-radius: 50%; display: grid; place-items: center;\n  border: .5px solid rgba(0,0,0,.18); cursor: pointer; position: relative;\n}\n.lights i:nth-child(1) { background: #ff5f57; }\n.lights i:nth-child(2) { background: #febc2e; }\n.lights i:nth-child(3) { background: #28c840; }\n.lights i:hover { filter: brightness(.92); }\n.lights i.off { background: var(--track) !important; cursor: default; }\n\n/* ── 컨트롤 ─────────────────────────────────────────── */\n.btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: 5px;\n  height: 24px; padding: 0 10px; border-radius: 6px; border: 0;\n  background: var(--btn); box-shadow: var(--ctl-shadow);\n  font-size: 13px; font-weight: 500; white-space: nowrap; cursor: default;\n}\n.btn:hover { background: var(--btn-hover); }\na.btn { text-decoration: none; color: inherit; }\n.btn:active { filter: brightness(.94); }\n.btn:disabled { opacity: .45; pointer-events: none; }\n.btn svg { width: 14px; height: 14px; }\n.btn.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent)); color: #fff; box-shadow: 0 .5px 1px rgba(0,0,0,.25), inset 0 .5px 0 rgba(255,255,255,.25); }\n.btn.primary:hover { background: var(--accent); }\n.btn.danger { color: var(--red); }\n.btn.lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }\n.btn.ghost { background: transparent; box-shadow: none; }\n.btn.ghost:hover { background: var(--hover); }\n.icon-btn {\n  width: 28px; height: 28px; border-radius: 6px; border: 0; background: transparent;\n  display: inline-grid; place-items: center; color: var(--text2); cursor: default;\n}\n.icon-btn:hover { background: var(--hover); color: var(--text); }\n.icon-btn svg { width: 16px; height: 16px; }\n.icon-btn.sm { width: 22px; height: 22px; } .icon-btn.sm svg { width: 13px; height: 13px; }\n.kbd { font-size: 11px; opacity: .75; margin-left: 2px; }\n\n.field, .ta, .select {\n  width: 100%; border: 0; outline: 0;\n  background: var(--field); box-shadow: var(--ctl-shadow);\n  border-radius: 6px; padding: 4px 8px; min-height: 24px;\n  transition: box-shadow .12s;\n}\n.field:focus, .ta:focus, .select:focus { box-shadow: 0 0 0 .5px var(--accent), 0 0 0 3.5px var(--ring); }\n.field::placeholder, .ta::placeholder { color: var(--text3); }\n.ta { display: block; resize: vertical; min-height: 54px; padding: 6px 8px; font-size: 12.5px; line-height: 1.45; font-family: var(--font); }\n.ta.mono, .field.mono { font-family: var(--mono); font-size: 12px; }\n.ta.short { min-height: 38px; }\n.select {\n  appearance: none; -webkit-appearance: none; padding-right: 26px; cursor: default; height: 24px; min-height: 0;\n  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1 4.5 4 1.5l3 3M1 7.5l3 3 3-3' fill='none' stroke='%23888' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");\n  background-repeat: no-repeat; background-position: right 8px center;\n}\n.root.dark .select option { background: #2c2c30; }\n.field.num { width: 72px; text-align: right; font-variant-numeric: tabular-nums; }\n\n.seg { display: inline-flex; background: var(--track); border-radius: 7px; padding: 2px; gap: 2px; }\n.seg button {\n  border: 0; background: transparent; height: 20px; padding: 0 10px; border-radius: 5px;\n  font-size: 12px; font-weight: 500; color: var(--text); cursor: default; white-space: nowrap;\n}\n.seg button.on { background: var(--btn); box-shadow: var(--ctl-shadow); }\n.root.dark .seg button.on { background: rgba(255,255,255,.2); }\n.seg.sm button { padding: 0 7px; font-size: 11px; height: 18px; }\n\n.switch { position: relative; width: 32px; height: 19px; flex: none; }\n.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: default; z-index: 1; }\n.switch span { position: absolute; inset: 0; border-radius: 99px; background: var(--track); box-shadow: inset 0 0 0 .5px var(--sep); transition: background .2s; }\n.switch span::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s cubic-bezier(.3,.7,.4,1.2); }\n.switch input:checked + span { background: var(--accent); }\n.switch input:checked + span::after { transform: translateX(13px); }\n\n.badge { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 5px; font-size: 10.5px; font-weight: 600; background: var(--track); color: var(--text2); white-space: nowrap; }\n.badge.blue { background: var(--accent-soft); color: var(--accent); }\n.badge.orange { background: color-mix(in srgb, var(--orange) 18%, transparent); color: var(--orange); }\n.badge.green { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }\n.badge.red { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }\n.muted { color: var(--text2); }\n.tiny { font-size: 11px; }\n.grow { flex: 1; }\n.row { display: flex; align-items: center; gap: 8px; }\n.stack { display: flex; flex-direction: column; gap: 6px; }\n\n/* 스크롤 */\n.scroll { overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--sep-strong) transparent; }\n.scroll::-webkit-scrollbar { width: 10px; height: 10px; }\n.scroll::-webkit-scrollbar-thumb { background: var(--sep-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }\n\n/* ── 그룹 리스트 (시스템 설정 스타일) ─────────────────── */\n.section-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: none; margin: 18px 4px 6px; display: flex; align-items: center; gap: 6px; }\n.section-title:first-child { margin-top: 0; }\n.section-title .grow + * { font-weight: 500; }\n.group { background: var(--group); border-radius: 10px; box-shadow: 0 0 0 .5px var(--sep); }\n.group > .item { padding: 9px 12px; display: flex; align-items: center; gap: 10px; min-height: 40px; position: relative; }\n.group > .item + .item::before { content: ''; position: absolute; top: 0; left: 12px; right: 0; border-top: .5px solid var(--sep); }\n.group > .item.col { flex-direction: column; align-items: stretch; gap: 6px; }\n.item .label { flex: 1; min-width: 0; }\n.item .label b { font-weight: 500; display: block; }\n.item .label small { display: block; color: var(--text2); font-size: 11.5px; margin-top: 1px; }\n.footnote { color: var(--text2); font-size: 11.5px; margin: 6px 4px 0; line-height: 1.45; }\n.footnote code, .help code { font-family: var(--mono); font-size: 11px; background: var(--track); padding: 0 4px; border-radius: 4px; }\n\n/* ── 스튜디오 ─────────────────────────────────────── */\n.studio { width: min(1180px, calc(100vw - 32px)); height: min(820px, calc(100vh - 32px)); }\n.studio .body { flex: 1; display: grid; grid-template-columns: minmax(300px, 1fr) minmax(380px, 460px); min-height: 0; }\n.stage { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--stage); border-right: .5px solid var(--sep-strong); }\n.canvas { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; overflow: hidden; }\n.canvas img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,.18), 0 0 0 .5px var(--sep); cursor: zoom-in; }\n.placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text3); text-align: center; max-width: 280px; }\n.placeholder svg { width: 44px; height: 44px; opacity: .6; }\n.placeholder b { color: var(--text2); font-weight: 600; font-size: 14px; }\n.busy {\n  position: absolute; inset: 0; display: grid; place-items: center;\n  background: color-mix(in srgb, var(--stage) 55%, transparent);\n  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);\n}\n.busy .card { background: var(--win); border-radius: 14px; box-shadow: var(--shadow); padding: 18px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 220px; }\n.spinner { width: 22px; height: 22px; position: relative; }\n.spinner i { position: absolute; left: 10px; top: 1px; width: 2.2px; height: 6px; border-radius: 2px; background: var(--text2); transform-origin: 1.1px 10px; animation: spin 1s linear infinite; }\n@keyframes spin { 0% { opacity: 1; } 100% { opacity: .15; } }\n.film { flex: none; display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; border-top: .5px solid var(--sep); align-items: center; background: var(--bar); }\n.film .thumb { flex: none; width: 46px; height: 46px; border-radius: 7px; overflow: hidden; border: 0; padding: 0; background: var(--track); box-shadow: 0 0 0 .5px var(--sep); cursor: default; position: relative; }\n.film .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }\n.film .thumb.on { box-shadow: 0 0 0 2px var(--accent); }\n.film .thumb .pin { position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; }\n.film .thumb .pin svg { width: 8px; height: 8px; }\n.film .tools { display: flex; gap: 2px; margin-left: auto; }\n\n.inspector { display: flex; flex-direction: column; min-height: 0; background: var(--win); }\n.inspector .content { flex: 1; padding: 14px 16px 24px; }\n.inspector .footer { flex: none; border-top: .5px solid var(--sep-strong); background: var(--bar); padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }\n\n.moment { font-size: 12.5px; color: var(--text2); padding: 2px 4px 0; }\n.slot { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 7px; }\n.slot + .slot { border-top: .5px solid var(--sep); }\n.slot-head { display: flex; align-items: center; gap: 7px; min-height: 22px; }\n.slot-head .name { font-weight: 600; font-size: 13px; }\n.slot-head .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }\n.slot-head .tok { margin-left: auto; font-variant-numeric: tabular-nums; }\n.slot .sub { font-size: 11px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; }\n.slot.off > :not(.slot-head) { display: none; }\n.slot.off .name { color: var(--text3); }\n.where { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text2); font-weight: 600; letter-spacing: .02em; }\n.where svg { width: 11px; height: 11px; }\n\n.notes { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }\n.note { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; padding: 8px 10px; border-radius: 8px; background: var(--group); box-shadow: 0 0 0 .5px var(--sep); }\n.note svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--accent); }\n.note.warn svg { color: var(--orange); }\n.note.error svg { color: var(--red); }\n\ndetails.raw { margin-top: 12px; }\ndetails.raw summary { cursor: default; font-size: 11px; font-weight: 600; color: var(--text2); list-style: none; display: flex; align-items: center; gap: 4px; padding: 4px; }\ndetails.raw summary::-webkit-details-marker { display: none; }\ndetails.raw summary svg { width: 10px; height: 10px; transition: transform .15s; }\ndetails.raw[open] summary svg { transform: rotate(90deg); }\ndetails.raw pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 11px; line-height: 1.5; background: var(--group); box-shadow: 0 0 0 .5px var(--sep); border-radius: 8px; padding: 10px 12px; max-height: 320px; overflow: auto; }\ndetails.raw pre .k { color: var(--purple); }\n\n.meter { display: flex; flex-direction: column; gap: 4px; }\n.meter .bar { height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; display: flex; }\n.meter .bar i { height: 100%; display: block; }\n.meter .bar i + i { box-shadow: -1px 0 0 var(--win-solid); }\n.meter .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }\n.meter .legend span { display: inline-flex; align-items: center; gap: 4px; }\n.meter .legend span::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }\n.meter .legend .total { margin-left: auto; font-weight: 600; color: var(--text); }\n.meter.over .legend .total { color: var(--red); }\n.c-style { --c: var(--purple); } .c-scene { --c: var(--accent); }\n.c-0 { --c: var(--orange); } .c-1 { --c: var(--green); } .c-2 { --c: var(--pink); } .c-3 { --c: var(--teal); } .c-4 { --c: var(--yellow); } .c-5 { --c: #8e8e93; }\n\n/* 팝오버 메뉴 */\n.menu { position: fixed; pointer-events: auto; min-width: 200px; max-width: 320px; max-height: 60vh; overflow: auto; padding: 5px; border-radius: 9px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); z-index: 5; animation: fade .1s; }\n.menu button { display: flex; width: 100%; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent; padding: 4px 10px; border-radius: 5px; font-size: 13px; cursor: default; min-height: 24px; }\n.menu button:hover { background: var(--accent); color: #fff; }\n.menu button:hover small { color: rgba(255,255,255,.8); }\n.menu button small { color: var(--text2); font-size: 11px; display: block; }\n.menu hr { border: 0; border-top: .5px solid var(--sep-strong); margin: 4px 8px; }\n.menu .hd { font-size: 11px; font-weight: 600; color: var(--text2); padding: 4px 10px 2px; }\n\n/* ── 설정 ─────────────────────────────────────────── */\n.settings { width: min(860px, calc(100vw - 32px)); height: min(640px, calc(100vh - 32px)); }\n.settings .body { flex: 1; display: grid; grid-template-columns: 210px 1fr; min-height: 0; }\n.settings .side { background: var(--side); border-right: .5px solid var(--sep-strong); display: flex; flex-direction: column; min-height: 0; }\n.settings .side .titlebar { background: transparent; border: 0; grid-template-columns: auto 1fr; }\n.settings .nav { padding: 4px 10px 12px; display: flex; flex-direction: column; gap: 1px; }\n.settings .nav button { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; height: 30px; padding: 0 8px; border-radius: 6px; font-size: 13px; text-align: left; cursor: default; }\n.settings .nav button:hover { background: var(--hover); }\n.settings .nav button.on { background: var(--accent); color: #fff; }\n.settings .nav .ic { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; color: #fff; flex: none; }\n.settings .nav .ic svg { width: 12px; height: 12px; }\n.settings .main { display: flex; flex-direction: column; min-height: 0; }\n.settings .main .titlebar { grid-template-columns: auto 1fr auto; }\n.settings .main .titlebar .title { text-align: left; }\n.settings .main .titlebar .title b { font-size: 15px; font-weight: 700; }\n.settings .pane { flex: 1; padding: 6px 24px 28px; }\n.side .search { margin: 0 10px 8px; }\n.char-list { display: flex; flex-direction: column; }\n.char-list button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; text-align: left; padding: 8px 12px; cursor: default; position: relative; }\n.char-list button + button::before { content: ''; position: absolute; top: 0; left: 46px; right: 0; border-top: .5px solid var(--sep); }\n.char-list button:hover { background: var(--hover); }\n.char-list button:first-child { border-radius: 10px 10px 0 0; } .char-list button:last-child { border-radius: 0 0 10px 10px; }\n.avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 12px; flex: none; }\n.char-list .meta { flex: 1; min-width: 0; }\n.char-list .meta b { display: block; font-weight: 500; }\n.char-list .meta small { display: block; color: var(--text2); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n.chev { width: 8px; height: 13px; color: var(--text3); flex: none; }\n.kv { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; }\n\n/* ── 알림 (macOS Notification) ───────────────────── */\n.toasts { position: fixed; top: 14px; right: 14px; display: flex; flex-direction: column; gap: 8px; width: min(356px, calc(100vw - 28px)); pointer-events: none; z-index: 10; }\n.toast {\n  pointer-events: auto; display: flex; gap: 10px; align-items: flex-start;\n  padding: 11px 12px; border-radius: 16px;\n  background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);\n  box-shadow: var(--shadow);\n  animation: slide .32s cubic-bezier(.2,.9,.3,1.1);\n}\n.toast.leaving { animation: out .2s ease forwards; }\n@keyframes slide { from { opacity: 0; transform: translateX(30px); } }\n@keyframes out { to { opacity: 0; transform: translateX(30px); } }\n.toast .app { width: 32px; height: 32px; border-radius: 8px; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }\n.toast .app svg { width: 18px; height: 18px; }\n.toast .app.err { background: linear-gradient(135deg, #ff6a5c, #ff3b30); }\n.toast .app.ok { background: linear-gradient(135deg, #5ee07a, #28c840); }\n.toast .txt { flex: 1; min-width: 0; }\n.toast .txt b { display: block; font-size: 13px; font-weight: 600; }\n.toast .txt p { margin: 1px 0 0; font-size: 12.5px; color: var(--text2); word-break: break-word; }\n.toast .acts { display: flex; gap: 6px; margin-top: 8px; }\n.toast .prog { height: 3px; border-radius: 99px; background: var(--track); overflow: hidden; margin-top: 8px; }\n.toast .prog i { display: block; height: 100%; width: 40%; background: var(--accent); border-radius: 99px; animation: indet 1.2s ease-in-out infinite; }\n@keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }\n.toast .x { opacity: 0; transition: opacity .15s; margin: -4px -4px 0 0; }\n.toast:hover .x { opacity: 1; }\n\n/* 미니 독 (노란 버튼으로 숨긴 창) */\n.dock { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); pointer-events: auto; animation: pop .2s; }\n.dock button { border: 0; background: transparent; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 11px; cursor: default; font-size: 12.5px; font-weight: 500; }\n.dock button:hover { background: var(--hover); }\n.dock .app { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }\n.dock .app svg { width: 15px; height: 15px; }\n\n/* 라이트박스 */\n.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: grid; place-items: center; pointer-events: auto; animation: fade .15s; cursor: zoom-out; }\n.lightbox img { max-width: 94vw; max-height: 94vh; border-radius: 6px; }\n\n/* ── 좁은 화면: 시트처럼 꽉 채움 ─────────────────── */\n@media (max-width: 760px) {\n  .win { inset: 0 !important; width: auto !important; height: auto !important; border-radius: 0; }\n  .studio .body { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 42%) 1fr; }\n  .stage { border-right: 0; border-bottom: .5px solid var(--sep-strong); }\n  .settings .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }\n  .settings .side { border-right: 0; border-bottom: .5px solid var(--sep-strong); }\n  .settings .side .titlebar { display: none; }\n  .settings .nav { flex-direction: row; overflow-x: auto; padding: 8px; }\n  .settings .nav button { flex: none; }\n  .settings .pane { padding: 6px 14px 24px; }\n  .kv { grid-template-columns: 1fr; gap: 4px; }\n  .titlebar { padding: 0 10px; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; }\n  .titlebar .title { text-align: left; }\n  .titlebar .title small { display: none; }\n  .titlebar .right .select { max-width: 116px; }\n  .lights { margin-right: 0; }\n  .slot-head .muted.tiny { display: none; }\n  .kbd { display: none; }\n  .inspector .content { padding: 12px 12px 20px; }\n}\n\n/* ── 갤러리 ─────────────────────────────────────── */\n.gallery { width: min(1100px, calc(100vw - 32px)); height: min(780px, calc(100vh - 32px)); }\n.gallery .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }\n.gal { flex: 1; min-height: 0; padding: 6px 18px 24px; }\n.gal-head { position: sticky; top: 0; z-index: 1; padding: 12px 2px 8px; font-size: 13px; font-weight: 700; background: linear-gradient(var(--win-solid) 70%, transparent); }\n.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }\n.gal-cell { position: relative; aspect-ratio: 2 / 3; border: 0; padding: 0; border-radius: 4px; overflow: hidden; background: var(--track); cursor: default; }\n.gal-cell img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s; }\n.gal-cell:hover img { transform: scale(1.025); }\n.gal-cell:focus-visible { outline: 3px solid var(--ring); }\n.gal-cell .pin { position: absolute; right: 5px; bottom: 5px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }\n.gal-cell .pin svg { width: 9px; height: 9px; }\n.gal-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text3); text-align: center; padding: 24px; }\n.gal-empty svg { width: 46px; height: 46px; opacity: .55; }\n.gal-empty b { color: var(--text2); font-size: 14px; }\n.viewer { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 340px; }\n.v-stage { position: relative; min-height: 0; background: var(--stage); display: flex; align-items: center; justify-content: center; padding: 16px 52px; overflow: hidden; border-right: .5px solid var(--sep-strong); }\n.v-stage img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,.18); cursor: zoom-in; }\n.v-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%; background: var(--win); box-shadow: var(--ctl-shadow); }\n.v-nav:first-child { left: 12px; } .v-nav:last-child { right: 12px; }\n.v-nav:disabled { opacity: .3; }\n.v-info { padding: 12px 16px 20px; min-height: 0; }\n.v-prompt { margin: 0; white-space: pre-wrap; word-break: break-word; font: 11.5px/1.55 var(--mono); background: var(--group); box-shadow: 0 0 0 .5px var(--sep); border-radius: 8px; padding: 10px 12px; }\n.detail { width: min(720px, calc(100vw - 32px)); height: min(560px, calc(100vh - 32px)); }\n@media (max-width: 760px) {\n  .viewer { grid-template-columns: 1fr; grid-template-rows: 55% 1fr; }\n  .v-stage { border-right: 0; border-bottom: .5px solid var(--sep-strong); padding: 10px 44px; }\n  .gal-grid { grid-template-columns: repeat(3, 1fr); gap: 2px; }\n  .gal { padding: 4px 8px 16px; }\n}\n";
 
 const PAGE_CSS = "/* ── Crack Painter · 채팅 화면에 붙는 요소 ───────────── */\n.cp-figure { position: relative; margin: 14px 0; max-width: 100%; display: flex; flex-direction: column; align-items: center; }\n.cp-figure .cp-img-wrap { position: relative; display: inline-block; max-width: 100%; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 .5px rgba(0,0,0,.12), 0 6px 22px rgba(0,0,0,.14); line-height: 0; }\n.cp-figure img { display: block; max-width: 100%; max-height: 78vh; height: auto; cursor: zoom-in; }\n.cp-figure .cp-bar {\n  position: absolute; left: 50%; bottom: 10px; transform: translate(-50%, 6px);\n  display: flex; align-items: center; gap: 2px; padding: 3px;\n  border-radius: 10px; line-height: 1;\n  background: rgba(30,30,32,.62); color: #fff;\n  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);\n  box-shadow: 0 0 0 .5px rgba(255,255,255,.14), 0 4px 16px rgba(0,0,0,.25);\n  opacity: 0; transition: opacity .16s, transform .16s; white-space: nowrap;\n  font: 500 12px -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Apple SD Gothic Neo\", Pretendard, system-ui, sans-serif;\n}\n.cp-figure:hover .cp-bar, .cp-figure:focus-within .cp-bar, .cp-figure.cp-touch .cp-bar { opacity: 1; transform: translate(-50%, 0); }\n.cp-figure .cp-bar button { all: unset; display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 26px; padding: 0 4px; border-radius: 7px; cursor: pointer; color: #fff; }\n.cp-figure .cp-bar button:hover { background: rgba(255,255,255,.16); }\n.cp-figure .cp-bar button:disabled { opacity: .35; pointer-events: none; }\n.cp-figure .cp-bar svg { width: 15px; height: 15px; display: block; }\n.cp-figure .cp-bar .cp-count { padding: 0 4px; font-variant-numeric: tabular-nums; opacity: .9; font-size: 11.5px; }\n.cp-figure .cp-bar .cp-sep { width: .5px; height: 16px; background: rgba(255,255,255,.25); margin: 0 3px; }\n.cp-figure .cp-busy { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.28); color: #fff; font: 600 12px -apple-system, system-ui, sans-serif; line-height: 1.4; }\n.cp-figure .cp-cap { margin-top: 6px; font: 11.5px -apple-system, BlinkMacSystemFont, \"Apple SD Gothic Neo\", Pretendard, system-ui, sans-serif; opacity: .55; text-align: center; }\nbody.cp-hidden .cp-figure, body.cp-hidden .cp-msg-btn { display: none !important; }\n\n.cp-msg-btn { all: unset; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; color: currentColor; opacity: .62; transition: opacity .15s, background .15s; }\n.cp-msg-btn:hover { opacity: 1; background: rgba(127,127,127,.14); }\n.cp-msg-btn svg { width: 18px; height: 18px; display: block; }\n.cp-msg-btn.cp-running { opacity: 1; color: #0a84ff; animation: cp-pulse 1.2s ease-in-out infinite; }\n@keyframes cp-pulse { 50% { opacity: .45; } }\n";
 
@@ -1088,6 +1088,11 @@ const Store = (() => {
         return reqP(d.transaction('records').objectStore('records').index('room').getAll(roomId));
     }
 
+    async function allRecords() {
+        const d = await db();
+        return reqP(d.transaction('records').objectStore('records').getAll());
+    }
+
     async function putRecord(rec) {
         rec.key = recKey(rec.roomId, rec.messageKey);
         rec.updatedAt = Date.now();
@@ -1124,7 +1129,7 @@ const Store = (() => {
         }
     }
 
-    return { on, emit, settings, update, secrets, setSecret, roomChars, uid, putImage, getImage, deleteImage, getRecord, roomRecords, putRecord, deleteRecord, usage, getMeta, setMeta };
+    return { on, emit, settings, update, secrets, setSecret, roomChars, uid, putImage, getImage, deleteImage, getRecord, roomRecords, putRecord, deleteRecord, usage, getMeta, setMeta, allRecords };
 })();
 
 
@@ -1553,7 +1558,11 @@ const Folder = (() => {
 
     const clean = s => String(s || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'untitled';
 
+    // 채팅방 이름: 상단 헤더 제목(예: "나쁜 버릇") → 문서 제목 → 방 id
     function roomName() {
+        const head = document.querySelector('.z-docked button .line-clamp-1, header button .line-clamp-1');
+        const h = head?.textContent?.trim();
+        if (h) return clean(h);
         const t = document.title.replace(/\s*[|·-]\s*(크랙|crack|wrtn).*$/i, '').trim();
         return clean(t && !/^(크랙|crack)$/i.test(t) ? t : Crack.roomId());
     }
@@ -2084,6 +2093,7 @@ const App = (() => {
         const rec = (await Store.getRecord(roomId, messageKey)) || { roomId, messageKey, history: [], index: 0 };
         rec.paragraph = state.paragraph ?? rec.paragraph ?? 0;
         rec.title = state.title || rec.title || '';
+        if (roomId === Crack.roomId()) rec.roomName = Folder.roomName();
         rec.history.push({
             imageId, seed, model, gen: clone(gen), state: clone(state),
             sent: { base: assembled.base, negative: NAI.mergeNegative(assembled.baseNeg, model, gen.ucPreset), chars: assembled.chars.map(c => ({ name: c.name, prompt: c.prompt, uc: c.uc })) },
@@ -2350,34 +2360,60 @@ const App = (() => {
         }
     }
 
-    // 오른쪽 메뉴 "상황 이미지 보기" 아래에 "AI 삽화" 행을 복제해 붙인다
+    // 오른쪽 메뉴 "상황 이미지 보기" 아래에 크랙 행을 복제해 두 줄을 붙인다:
+    //   AI 삽화 (스위치: 켜고 끄기 / 글자: 설정)   ·   삽화 갤러리
+    const MENU_ICONS = {
+        paint: '<path d="M14.9 3.1a1.6 1.6 0 0 1 2.26 0l3.74 3.74a1.6 1.6 0 0 1 0 2.26l-8.6 8.6-6-6zM5.3 12.8l5.9 5.9c-.6 1.9-2.3 3.2-4.4 3.2H2.2v-1.6c.9 0 1.5-.4 1.6-1.4.2-2.3-.2-4.6 1.5-6.1m.03 2.37c-.2.7-.15 1.6-.2 2.6-.04.8-.3 1.5-.7 2.03h2.37c1.05 0 1.98-.55 2.47-1.4z"/>',
+        gallery: '<path fill-rule="evenodd" clip-rule="evenodd" d="M20.2 2.2a1.3 1.3 0 0 1 1.3 1.3v16.7a1.3 1.3 0 0 1-1.3 1.3H3.5a1.3 1.3 0 0 1-1.3-1.3V3.5a1.3 1.3 0 0 1 1.3-1.3zM3.8 19.9h16.1V3.8H3.8z"/><path d="m5.6 17.6 4-5.2 2.9 3.5 1.9-2.3 3.9 4z"/><circle cx="15.6" cy="7.9" r="1.7"/>'
+    };
+
+    function cloneMenuRow(origin, { cls, label, icon, keepSwitch }) {
+        const row = origin.cloneNode(true);
+        row.classList.add('cp-menu-row', cls);
+        // 글자 칸 = 자식 span 이 없는 가장 안쪽 span (크기 class 가 여기 붙어 있음)
+        const text = Array.from(row.querySelectorAll('span')).find(s => !s.querySelector('span') && s.textContent.trim() === '상황 이미지 보기');
+        if (text) text.textContent = label;
+        const svg = row.querySelector('svg');
+        if (svg) {
+            const ns = 'http://www.w3.org/2000/svg';
+            const n = document.createElementNS(ns, 'svg');
+            ['xmlns', 'fill', 'viewBox', 'width', 'height', 'color', 'class'].forEach(a => { if (svg.hasAttribute(a)) n.setAttribute(a, svg.getAttribute(a)); });
+            n.innerHTML = MENU_ICONS[icon];
+            svg.replaceWith(n);
+        }
+        if (!keepSwitch) row.querySelector('button[role="switch"]')?.closest('span')?.remove();
+        return row;
+    }
+
     function injectMenuRow() {
         const origin = Crack.situationRow();
-        if (!origin || origin.nextElementSibling?.classList?.contains('cp-menu-row')) return;
+        if (!origin) return;
+        const next = origin.nextElementSibling;
+        if (next?.classList?.contains('cp-row-main') && next.nextElementSibling?.classList?.contains('cp-row-gallery')) return;
         document.querySelectorAll('.cp-menu-row').forEach(r => r.remove());
-        const row = origin.cloneNode(true);
-        row.classList.add('cp-menu-row');
-        const label = Array.from(row.querySelectorAll('span')).find(s => s.textContent.trim() === '상황 이미지 보기');
-        if (label) label.textContent = 'AI 삽화 (Crack Painter)';
-        const svg = row.querySelector('svg');
-        if (svg) { const span = document.createElement('span'); span.style.cssText = 'width:24px;height:24px;display:inline-grid;place-items:center'; span.innerHTML = icons.brush; svg.replaceWith(span); }
-        const sw = row.querySelector('button[role="switch"]');
+
+        const main = cloneMenuRow(origin, { cls: 'cp-row-main', label: 'AI 삽화', icon: 'paint', keepSwitch: true });
+        const sw = main.querySelector('button[role="switch"]');
         const paint = () => {
             if (!sw) return;
             const on = enabled();
             sw.setAttribute('aria-checked', String(on));
             sw.setAttribute('data-state', on ? 'checked' : 'unchecked');
-            const thumb = sw.querySelector('span');
-            thumb?.setAttribute('data-state', on ? 'checked' : 'unchecked');
+            sw.querySelector('span')?.setAttribute('data-state', on ? 'checked' : 'unchecked');
         };
         paint();
-        row.addEventListener('click', ev => {
+        main.addEventListener('click', ev => {
             ev.preventDefault();
             ev.stopPropagation();
             if (ev.target.closest('button[role="switch"]')) { setEnabled(!enabled()); paint(); }
             else Settings.open();
         }, true);
-        origin.insertAdjacentElement('afterend', row);
+
+        const gallery = cloneMenuRow(origin, { cls: 'cp-row-gallery', label: '삽화 갤러리', icon: 'gallery', keepSwitch: false });
+        gallery.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); Gallery.open(); }, true);
+
+        origin.insertAdjacentElement('afterend', main);
+        main.insertAdjacentElement('afterend', gallery);
     }
 
     // ── 시작 ─────────────────────────────────────────────
@@ -2411,6 +2447,7 @@ const App = (() => {
 
         try {
             GM_registerMenuCommand?.('설정 열기', () => Settings.open());
+            GM_registerMenuCommand?.('삽화 갤러리', () => Gallery.open());
             GM_registerMenuCommand?.('삽화 보이기/숨기기', () => setEnabled(!enabled()));
         } catch (_) {}
     }
@@ -2457,6 +2494,7 @@ const Studio = (() => {
         S.win = UI.openWindow({ id: 'studio', className: 'studio', title: '삽화 스튜디오', subtitle: '', onClose: () => { S?.controller?.abort(); S = null; } });
         S.win.setRight(`
             <select class="select" data-model style="width:auto">${UI.options(Object.values(Core.MODELS).map(m => [m.id, `NAI ${m.label}`]), S.model)}</select>
+            <button class="icon-btn" data-act="gallery" title="삽화 갤러리">${icons.photo}</button>
             <button class="icon-btn" data-act="settings" title="설정">${icons.gear}</button>`);
         bindChrome();
         load();
@@ -2826,6 +2864,7 @@ const Studio = (() => {
 
     const actions = {
         settings: () => Settings.open(),
+        gallery: () => Gallery.open(),
         cancel: () => S.controller?.abort(),
         generate: () => generate(),
         reanalyze: () => reanalyze(),
@@ -2936,6 +2975,214 @@ const Studio = (() => {
     }
 
     return { open, close, onRecordChanged, onSettingsChanged, get session() { return S; } };
+})();
+
+
+// ===== gallery.js =====
+// ─────────────────────────────────────────────────────────────
+// Gallery: 지금까지 만든 삽화 모아 보기 (macOS 사진 앱 느낌)
+//   이 채팅방 / 전체 · 썸네일 그리드 · 크게 보기(정보, 프롬프트, 저장, 채팅에서 보기, 삭제)
+// ─────────────────────────────────────────────────────────────
+const Gallery = (() => {
+    'use strict';
+    const { esc, icons } = UI;
+    let G = null;
+
+    async function open() {
+        if (G && UI.windows.has('gallery')) { UI.windows.get('gallery').restore(); return; }
+        const win = UI.openWindow({ id: 'gallery', className: 'gallery', title: '삽화 갤러리', onClose: () => { G?.io?.disconnect(); G = null; } });
+        G = { win, scope: Crack.roomId() ? 'room' : 'all', items: [], view: -1, io: null };
+        bind();
+        await load();
+    }
+
+    async function load() {
+        const all = await Store.allRecords().catch(() => []);
+        const roomId = Crack.roomId();
+        const items = [];
+        for (const rec of all) {
+            (rec.history || []).forEach((h, index) => items.push({
+                roomId: rec.roomId,
+                roomName: rec.roomName || (rec.roomId === roomId ? Folder.roomName() : `채팅방 ${String(rec.roomId).slice(0, 6)}`),
+                messageKey: rec.messageKey,
+                title: h.state?.title || rec.title || '',
+                index, h, shown: index === rec.index
+            }));
+        }
+        items.sort((a, b) => (b.h.createdAt || 0) - (a.h.createdAt || 0));
+        G.all = items;
+        filter();
+    }
+
+    function filter() {
+        const roomId = Crack.roomId();
+        G.items = G.scope === 'room' ? G.all.filter(x => x.roomId === roomId) : G.all;
+        G.view = -1;
+        render();
+    }
+
+    function dateLabel(ts) {
+        if (!ts) return '';
+        const d = new Date(ts);
+        const now = new Date();
+        const same = (a, b) => a.toDateString() === b.toDateString();
+        const y = new Date(now); y.setDate(now.getDate() - 1);
+        if (same(d, now)) return '오늘';
+        if (same(d, y)) return '어제';
+        return `${d.getFullYear() !== now.getFullYear() ? `${d.getFullYear()}년 ` : ''}${d.getMonth() + 1}월 ${d.getDate()}일`;
+    }
+
+    function time(ts) {
+        const d = new Date(ts || 0);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function render() {
+        const { win } = G;
+        win.setTitle('삽화 갤러리', `${G.items.length}장`);
+        win.setRight(`${UI.seg('scope', [['room', '이 채팅방'], ['all', '전체']], G.scope)}`);
+        if (G.view >= 0) return renderViewer();
+
+        // 날짜(전체일 때는 채팅방도)별로 묶기
+        const groups = [];
+        for (const [i, it] of G.items.entries()) {
+            const key = `${dateLabel(it.h.createdAt)}${G.scope === 'all' ? ` · ${it.roomName}` : ''}`;
+            if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, list: [] });
+            groups[groups.length - 1].list.push([i, it]);
+        }
+        win.body.innerHTML = G.items.length ? `
+          <div class="gal scroll">
+            ${groups.map(g => `
+              <div class="gal-head">${esc(g.key)}</div>
+              <div class="gal-grid">${g.list.map(([i, it]) => `
+                <button class="gal-cell" data-i="${i}" title="${esc(it.title || '장면')} · ${time(it.h.createdAt)}">
+                  <img data-lazy="${esc(it.h.imageId)}" alt="">
+                  ${it.shown ? `<span class="pin" title="채팅에 보이는 그림">${icons.pin}</span>` : ''}
+                </button>`).join('')}</div>`).join('')}
+          </div>`
+            : `<div class="gal-empty">${icons.photo}<b>${G.scope === 'room' ? '이 채팅방에서 만든 삽화가 없어' : '아직 만든 삽화가 없어'}</b><span>답변 아래의 붓이나 번개 버튼으로 만들어 봐.</span></div>`;
+        lazy();
+    }
+
+    // 화면에 보이는 썸네일만 불러온다
+    function lazy() {
+        G.io?.disconnect();
+        const box = G.win.body.querySelector('.gal');
+        if (!box) return;
+        G.io = new IntersectionObserver(entries => {
+            for (const e of entries) {
+                if (!e.isIntersecting) continue;
+                const img = e.target;
+                G.io.unobserve(img);
+                App.imageUrl(img.dataset.lazy).then(u => { if (u) img.src = u; });
+            }
+        }, { root: box, rootMargin: '300px' });
+        box.querySelectorAll('img[data-lazy]').forEach(img => G.io.observe(img));
+    }
+
+    function renderViewer() {
+        const it = G.items[G.view];
+        if (!it) { G.view = -1; return render(); }
+        const h = it.h;
+        const sent = h.sent || {};
+        const here = it.roomId === Crack.roomId();
+        const size = NAI.SIZES[h.gen?.size] || NAI.SIZES.portrait;
+        G.win.setTitle(it.title || '장면', `${G.view + 1} / ${G.items.length}`);
+        G.win.body.innerHTML = `
+          <div class="viewer">
+            <div class="v-stage">
+              <button class="icon-btn v-nav" data-act="prev" ${G.view <= 0 ? 'disabled' : ''} title="이전 (←)">${icons.left}</button>
+              <img data-img="${esc(h.imageId)}" alt="">
+              <button class="icon-btn v-nav" data-act="next" ${G.view >= G.items.length - 1 ? 'disabled' : ''} title="다음 (→)">${icons.right}</button>
+            </div>
+            <div class="v-info scroll">
+              <button class="btn ghost" data-act="back">${icons.left}모든 삽화</button>
+              <div class="section-title">정보</div>
+              <div class="group">
+                <div class="item"><span class="label"><b>${esc(it.title || '제목 없음')}</b><small>${esc(it.roomName)} · ${dateLabel(h.createdAt)} ${time(h.createdAt)}</small></span></div>
+                <div class="item"><span class="label muted tiny">${esc(Core.model(h.model).label)} · ${size.w}×${size.h} · 시드 ${esc(h.seed)}</span></div>
+              </div>
+              <div class="row" style="margin:12px 0 0;flex-wrap:wrap">
+                <button class="btn" data-act="save">${icons.download}저장</button>
+                <button class="btn" data-act="goto" ${here ? '' : 'disabled title="그 채팅방에서 열어야 해"'}>${icons.right}채팅에서 보기</button>
+                <button class="btn" data-act="studio" ${here ? '' : 'disabled title="그 채팅방에서 열어야 해"'}>${icons.edit}스튜디오</button>
+                <span class="grow"></span>
+                <button class="btn danger" data-act="delete">${icons.trash}</button>
+              </div>
+              <div class="section-title"><span>보낸 프롬프트</span><span class="grow"></span><button class="btn ghost" data-act="copy">복사</button></div>
+              <pre class="v-prompt">${esc(promptText(sent))}</pre>
+            </div>
+          </div>`;
+        App.imageUrl(h.imageId).then(u => { const img = G.win.body.querySelector('.v-stage img'); if (img && u) img.src = u; });
+    }
+
+    function promptText(sent) {
+        return [
+            `[베이스]\n${sent.base || ''}`,
+            ...(sent.chars || []).map(c => `[${c.name}]\n${c.prompt}${c.uc ? `\nUC: ${c.uc}` : ''}`),
+            sent.negative ? `[네거티브]\n${sent.negative}` : ''
+        ].filter(Boolean).join('\n\n');
+    }
+
+    function bind() {
+        const el = G.win.el;
+        el.addEventListener('click', async ev => {
+            if (!G) return;
+            const segBtn = ev.target.closest('.seg button');
+            if (segBtn) { G.scope = segBtn.dataset.v; filter(); return; }
+            const cell = ev.target.closest('.gal-cell');
+            if (cell) { G.view = Number(cell.dataset.i); render(); return; }
+            if (ev.target.closest('.v-stage img')) { UI.lightbox(ev.target.closest('img').src); return; }
+            const act = ev.target.closest('[data-act]')?.dataset.act;
+            const it = G.items[G.view];
+            if (act === 'back') { G.view = -1; render(); }
+            else if (act === 'prev') { G.view = Math.max(0, G.view - 1); render(); }
+            else if (act === 'next') { G.view = Math.min(G.items.length - 1, G.view + 1); render(); }
+            else if (act === 'save' && it) {
+                const blob = await Store.getImage(it.h.imageId);
+                if (!blob) return;
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `crack-painter_${(it.title || 'scene').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40)}_${it.h.seed}.png`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+            } else if (act === 'copy' && it) {
+                try { await navigator.clipboard.writeText(promptText(it.h.sent || {})); UI.toast({ title: '프롬프트를 복사했어', kind: 'ok' }); } catch (_) { UI.toast({ title: '복사하지 못했어', kind: 'err' }); }
+            } else if (act === 'goto' && it) {
+                const md = Crack.findMarkdownByKey(it.messageKey);
+                if (!md) return UI.toast({ title: '그 답변이 화면에 없어', body: '위로 스크롤해서 그 답변을 불러온 다음 다시 눌러줘.' });
+                G.win.minimize();
+                md.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else if (act === 'studio' && it) {
+                const md = Crack.findMarkdownByKey(it.messageKey);
+                if (!md) return UI.toast({ title: '그 답변이 화면에 없어', body: '위로 스크롤해서 그 답변을 불러온 다음 다시 눌러줘.' });
+                G.win.minimize();
+                Studio.open(md);
+            } else if (act === 'delete' && it) {
+                await App.removeHistoryItem(it.roomId, it.messageKey, it.index);
+                const keep = G.view;
+                await load();
+                G.view = Math.min(keep, G.items.length - 1);
+                render();
+            }
+        });
+        document.addEventListener('keydown', onKey, true);
+        const off = () => document.removeEventListener('keydown', onKey, true);
+        const close = G.win.close;
+        G.win.close = () => { off(); close(); };
+    }
+
+    function onKey(ev) {
+        if (!G || G.win.minimized || G.view < 0) return;
+        if (ev.target?.closest?.('input, textarea')) return;
+        if (ev.key === 'ArrowLeft' && G.view > 0) { G.view--; render(); ev.preventDefault(); }
+        else if (ev.key === 'ArrowRight' && G.view < G.items.length - 1) { G.view++; render(); ev.preventDefault(); }
+    }
+
+    // 기록이 바뀌면(새 삽화, 삭제) 열린 갤러리를 새로 고침
+    Store.on(kind => { if (G && kind.startsWith('records:') && G.view < 0) load(); });
+
+    return { open };
 })();
 
 
@@ -3211,7 +3458,7 @@ const Settings = (() => {
           <div class="section-title">이 브라우저</div>
           <div class="group">
             <div class="item"><span class="label"><b>사용량</b></span><span class="muted" data-usage>계산 중…</span></div>
-            <div class="item"><span class="label"><b>이 채팅방 삽화</b></span><span class="muted" data-room-count>…</span><button class="btn danger" data-act="clear-room">모두 지우기</button></div>
+            <div class="item"><span class="label"><b>이 채팅방 삽화</b></span><span class="muted" data-room-count>…</span><button class="btn" data-act="open-gallery">갤러리</button><button class="btn danger" data-act="clear-room">모두 지우기</button></div>
           </div>
           <p class="footnote">다른 기기와는 공유되지 않아.</p>
           <div class="section-title">정보</div>
@@ -3307,6 +3554,7 @@ const Settings = (() => {
                 }
                 return;
             }
+            if (act === 'open-gallery') { Gallery.open(); return; }
             if (act === 'folder-grant') { await Folder.prime(true); fillFolder(); return; }
             if (act === 'test-nai') testNai();
             else if (act === 'test-llm') testLlm();
@@ -3413,7 +3661,7 @@ render();
         if (!key) { box.innerHTML = '<b style="color:var(--red)">토큰이 없어</b>'; return; }
         box.innerHTML = '<small>확인 중…</small>';
         try {
-            const d = await Net.request({ url: 'https://api.novelai.net/user/subscription', headers: { Authorization: `Bearer ${key}` }, timeout: 20000 });
+            const d = await Net.request({ url: 'https://image.novelai.net/user/subscription', headers: { Authorization: `Bearer ${key}` }, timeout: 20000 });
             const tier = ['Paper', 'Tablet', 'Scroll', 'Opus'][d?.tier] || `Tier ${d?.tier}`;
             const anlas = (d?.trainingStepsLeft?.fixedTrainingStepsLeft || 0) + (d?.trainingStepsLeft?.purchasedTrainingSteps || 0);
             box.innerHTML = `<b style="color:var(--green)">연결됨</b><small>${esc(tier)} · Anlas ${anlas.toLocaleString()}${d?.active === false ? ' · 구독 비활성' : ''}</small>`;

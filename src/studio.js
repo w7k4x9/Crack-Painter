@@ -35,6 +35,7 @@ const Studio = (() => {
         S.win = UI.openWindow({ id: 'studio', className: 'studio', title: '삽화 스튜디오', subtitle: '', onClose: () => { S?.controller?.abort(); S = null; } });
         S.win.setRight(`
             <select class="select" data-model style="width:auto">${UI.options(Object.values(Core.MODELS).map(m => [m.id, `NAI ${m.label}`]), S.model)}</select>
+            <button class="icon-btn" data-act="gallery" title="삽화 갤러리">${icons.photo}</button>
             <button class="icon-btn" data-act="settings" title="설정">${icons.gear}</button>`);
         bindChrome();
         load();
@@ -404,6 +405,7 @@ const Studio = (() => {
 
     const actions = {
         settings: () => Settings.open(),
+        gallery: () => Gallery.open(),
         cancel: () => S.controller?.abort(),
         generate: () => generate(),
         reanalyze: () => reanalyze(),

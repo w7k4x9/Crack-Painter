@@ -52,7 +52,11 @@ const Folder = (() => {
 
     const clean = s => String(s || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'untitled';
 
+    // 채팅방 이름: 상단 헤더 제목(예: "나쁜 버릇") → 문서 제목 → 방 id
     function roomName() {
+        const head = document.querySelector('.z-docked button .line-clamp-1, header button .line-clamp-1');
+        const h = head?.textContent?.trim();
+        if (h) return clean(h);
         const t = document.title.replace(/\s*[|·-]\s*(크랙|crack|wrtn).*$/i, '').trim();
         return clean(t && !/^(크랙|crack)$/i.test(t) ? t : Crack.roomId());
     }

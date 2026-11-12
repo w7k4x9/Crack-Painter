@@ -269,7 +269,7 @@ const Settings = (() => {
           <div class="section-title">이 브라우저</div>
           <div class="group">
             <div class="item"><span class="label"><b>사용량</b></span><span class="muted" data-usage>계산 중…</span></div>
-            <div class="item"><span class="label"><b>이 채팅방 삽화</b></span><span class="muted" data-room-count>…</span><button class="btn danger" data-act="clear-room">모두 지우기</button></div>
+            <div class="item"><span class="label"><b>이 채팅방 삽화</b></span><span class="muted" data-room-count>…</span><button class="btn" data-act="open-gallery">갤러리</button><button class="btn danger" data-act="clear-room">모두 지우기</button></div>
           </div>
           <p class="footnote">다른 기기와는 공유되지 않아.</p>
           <div class="section-title">정보</div>
@@ -365,6 +365,7 @@ const Settings = (() => {
                 }
                 return;
             }
+            if (act === 'open-gallery') { Gallery.open(); return; }
             if (act === 'folder-grant') { await Folder.prime(true); fillFolder(); return; }
             if (act === 'test-nai') testNai();
             else if (act === 'test-llm') testLlm();
@@ -471,7 +472,7 @@ render();
         if (!key) { box.innerHTML = '<b style="color:var(--red)">토큰이 없어</b>'; return; }
         box.innerHTML = '<small>확인 중…</small>';
         try {
-            const d = await Net.request({ url: 'https://api.novelai.net/user/subscription', headers: { Authorization: `Bearer ${key}` }, timeout: 20000 });
+            const d = await Net.request({ url: 'https://image.novelai.net/user/subscription', headers: { Authorization: `Bearer ${key}` }, timeout: 20000 });
             const tier = ['Paper', 'Tablet', 'Scroll', 'Opus'][d?.tier] || `Tier ${d?.tier}`;
             const anlas = (d?.trainingStepsLeft?.fixedTrainingStepsLeft || 0) + (d?.trainingStepsLeft?.purchasedTrainingSteps || 0);
             box.innerHTML = `<b style="color:var(--green)">연결됨</b><small>${esc(tier)} · Anlas ${anlas.toLocaleString()}${d?.active === false ? ' · 구독 비활성' : ''}</small>`;

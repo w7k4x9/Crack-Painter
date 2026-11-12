@@ -152,6 +152,7 @@ const App = (() => {
         const rec = (await Store.getRecord(roomId, messageKey)) || { roomId, messageKey, history: [], index: 0 };
         rec.paragraph = state.paragraph ?? rec.paragraph ?? 0;
         rec.title = state.title || rec.title || '';
+        if (roomId === Crack.roomId()) rec.roomName = Folder.roomName();
         rec.history.push({
             imageId, seed, model, gen: clone(gen), state: clone(state),
             sent: { base: assembled.base, negative: NAI.mergeNegative(assembled.baseNeg, model, gen.ucPreset), chars: assembled.chars.map(c => ({ name: c.name, prompt: c.prompt, uc: c.uc })) },
@@ -418,34 +419,60 @@ const App = (() => {
         }
     }
 
-    // 오른쪽 메뉴 "상황 이미지 보기" 아래에 "AI 삽화" 행을 복제해 붙인다
+    // 오른쪽 메뉴 "상황 이미지 보기" 아래에 크랙 행을 복제해 두 줄을 붙인다:
+    //   AI 삽화 (스위치: 켜고 끄기 / 글자: 설정)   ·   삽화 갤러리
+    const MENU_ICONS = {
+        paint: '<path d="M14.9 3.1a1.6 1.6 0 0 1 2.26 0l3.74 3.74a1.6 1.6 0 0 1 0 2.26l-8.6 8.6-6-6zM5.3 12.8l5.9 5.9c-.6 1.9-2.3 3.2-4.4 3.2H2.2v-1.6c.9 0 1.5-.4 1.6-1.4.2-2.3-.2-4.6 1.5-6.1m.03 2.37c-.2.7-.15 1.6-.2 2.6-.04.8-.3 1.5-.7 2.03h2.37c1.05 0 1.98-.55 2.47-1.4z"/>',
+        gallery: '<path fill-rule="evenodd" clip-rule="evenodd" d="M20.2 2.2a1.3 1.3 0 0 1 1.3 1.3v16.7a1.3 1.3 0 0 1-1.3 1.3H3.5a1.3 1.3 0 0 1-1.3-1.3V3.5a1.3 1.3 0 0 1 1.3-1.3zM3.8 19.9h16.1V3.8H3.8z"/><path d="m5.6 17.6 4-5.2 2.9 3.5 1.9-2.3 3.9 4z"/><circle cx="15.6" cy="7.9" r="1.7"/>'
+    };
+
+    function cloneMenuRow(origin, { cls, label, icon, keepSwitch }) {
+        const row = origin.cloneNode(true);
+        row.classList.add('cp-menu-row', cls);
+        // 글자 칸 = 자식 span 이 없는 가장 안쪽 span (크기 class 가 여기 붙어 있음)
+        const text = Array.from(row.querySelectorAll('span')).find(s => !s.querySelector('span') && s.textContent.trim() === '상황 이미지 보기');
+        if (text) text.textContent = label;
+        const svg = row.querySelector('svg');
+        if (svg) {
+            const ns = 'http://www.w3.org/2000/svg';
+            const n = document.createElementNS(ns, 'svg');
+            ['xmlns', 'fill', 'viewBox', 'width', 'height', 'color', 'class'].forEach(a => { if (svg.hasAttribute(a)) n.setAttribute(a, svg.getAttribute(a)); });
+            n.innerHTML = MENU_ICONS[icon];
+            svg.replaceWith(n);
+        }
+        if (!keepSwitch) row.querySelector('button[role="switch"]')?.closest('span')?.remove();
+        return row;
+    }
+
     function injectMenuRow() {
         const origin = Crack.situationRow();
-        if (!origin || origin.nextElementSibling?.classList?.contains('cp-menu-row')) return;
+        if (!origin) return;
+        const next = origin.nextElementSibling;
+        if (next?.classList?.contains('cp-row-main') && next.nextElementSibling?.classList?.contains('cp-row-gallery')) return;
         document.querySelectorAll('.cp-menu-row').forEach(r => r.remove());
-        const row = origin.cloneNode(true);
-        row.classList.add('cp-menu-row');
-        const label = Array.from(row.querySelectorAll('span')).find(s => s.textContent.trim() === '상황 이미지 보기');
-        if (label) label.textContent = 'AI 삽화 (Crack Painter)';
-        const svg = row.querySelector('svg');
-        if (svg) { const span = document.createElement('span'); span.style.cssText = 'width:24px;height:24px;display:inline-grid;place-items:center'; span.innerHTML = icons.brush; svg.replaceWith(span); }
-        const sw = row.querySelector('button[role="switch"]');
+
+        const main = cloneMenuRow(origin, { cls: 'cp-row-main', label: 'AI 삽화', icon: 'paint', keepSwitch: true });
+        const sw = main.querySelector('button[role="switch"]');
         const paint = () => {
             if (!sw) return;
             const on = enabled();
             sw.setAttribute('aria-checked', String(on));
             sw.setAttribute('data-state', on ? 'checked' : 'unchecked');
-            const thumb = sw.querySelector('span');
-            thumb?.setAttribute('data-state', on ? 'checked' : 'unchecked');
+            sw.querySelector('span')?.setAttribute('data-state', on ? 'checked' : 'unchecked');
         };
         paint();
-        row.addEventListener('click', ev => {
+        main.addEventListener('click', ev => {
             ev.preventDefault();
             ev.stopPropagation();
             if (ev.target.closest('button[role="switch"]')) { setEnabled(!enabled()); paint(); }
             else Settings.open();
         }, true);
-        origin.insertAdjacentElement('afterend', row);
+
+        const gallery = cloneMenuRow(origin, { cls: 'cp-row-gallery', label: '삽화 갤러리', icon: 'gallery', keepSwitch: false });
+        gallery.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); Gallery.open(); }, true);
+
+        origin.insertAdjacentElement('afterend', main);
+        main.insertAdjacentElement('afterend', gallery);
     }
 
     // ── 시작 ─────────────────────────────────────────────
@@ -479,6 +506,7 @@ const App = (() => {
 
         try {
             GM_registerMenuCommand?.('설정 열기', () => Settings.open());
+            GM_registerMenuCommand?.('삽화 갤러리', () => Gallery.open());
             GM_registerMenuCommand?.('삽화 보이기/숨기기', () => setEnabled(!enabled()));
         } catch (_) {}
     }

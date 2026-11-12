@@ -4,7 +4,7 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const read = f => fs.readFileSync(path.join(root, 'src', f), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-const order = ['core.js', 'nai.js', 'store.js', 'llm.js', 'crack.js', 'folder.js', 'ui.js', 'app.js', 'studio.js', 'settings.js', 'main.js'];
+const order = ['core.js', 'nai.js', 'store.js', 'llm.js', 'crack.js', 'folder.js', 'ui.js', 'app.js', 'studio.js', 'gallery.js', 'settings.js', 'main.js'];
 const body = [
     `const VERSION = ${JSON.stringify(pkg.version)};`,
     `const UI_CSS = ${JSON.stringify(read('ui.css'))};`,
