@@ -1,0 +1,30 @@
+/* ── Crack Painter · 채팅 화면에 붙는 요소 ───────────── */
+.cp-figure { position: relative; margin: 14px 0; max-width: 100%; display: flex; flex-direction: column; align-items: center; }
+.cp-figure .cp-img-wrap { position: relative; display: inline-block; max-width: 100%; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 .5px rgba(0,0,0,.12), 0 6px 22px rgba(0,0,0,.14); line-height: 0; }
+.cp-figure img { display: block; max-width: 100%; max-height: 78vh; height: auto; cursor: zoom-in; }
+.cp-figure .cp-bar {
+  position: absolute; left: 50%; bottom: 10px; transform: translate(-50%, 6px);
+  display: flex; align-items: center; gap: 2px; padding: 3px;
+  border-radius: 10px; line-height: 1;
+  background: rgba(30,30,32,.62); color: #fff;
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 0 0 .5px rgba(255,255,255,.14), 0 4px 16px rgba(0,0,0,.25);
+  opacity: 0; transition: opacity .16s, transform .16s; white-space: nowrap;
+  font: 500 12px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", Pretendard, system-ui, sans-serif;
+}
+.cp-figure:hover .cp-bar, .cp-figure:focus-within .cp-bar, .cp-figure.cp-touch .cp-bar { opacity: 1; transform: translate(-50%, 0); }
+.cp-figure .cp-bar button { all: unset; display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 26px; padding: 0 4px; border-radius: 7px; cursor: pointer; color: #fff; }
+.cp-figure .cp-bar button:hover { background: rgba(255,255,255,.16); }
+.cp-figure .cp-bar button:disabled { opacity: .35; pointer-events: none; }
+.cp-figure .cp-bar svg { width: 15px; height: 15px; display: block; }
+.cp-figure .cp-bar .cp-count { padding: 0 4px; font-variant-numeric: tabular-nums; opacity: .9; font-size: 11.5px; }
+.cp-figure .cp-bar .cp-sep { width: .5px; height: 16px; background: rgba(255,255,255,.25); margin: 0 3px; }
+.cp-figure .cp-busy { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.28); color: #fff; font: 600 12px -apple-system, system-ui, sans-serif; line-height: 1.4; }
+.cp-figure .cp-cap { margin-top: 6px; font: 11.5px -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, system-ui, sans-serif; opacity: .55; text-align: center; }
+body.cp-hidden .cp-figure, body.cp-hidden .cp-msg-btn { display: none !important; }
+
+.cp-msg-btn { all: unset; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; color: currentColor; opacity: .62; transition: opacity .15s, background .15s; }
+.cp-msg-btn:hover { opacity: 1; background: rgba(127,127,127,.14); }
+.cp-msg-btn svg { width: 18px; height: 18px; display: block; }
+.cp-msg-btn.cp-running { opacity: 1; color: #0a84ff; animation: cp-pulse 1.2s ease-in-out infinite; }
+@keyframes cp-pulse { 50% { opacity: .45; } }
