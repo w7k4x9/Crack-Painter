@@ -8,7 +8,8 @@ const UI = (() => {
 
     const P = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${d}</svg>`;
     const icons = {
-        brush: P('<path d="M14.5 4.5 19.5 9.5 11 18l-5-5z"/><path d="M6 13c-2 0-3 1.5-3 3.5S2 20 2 20s3 .5 4.5-1S8 16 8 15"/><path d="m16 3 5 5"/>'),
+        // 삽화(그림 + 반짝임): 메시지 버튼·생성 버튼·알림 아이콘
+        brush: P('<path d="M13 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M4.5 17.5 9 13l3.5 3.5 2-2 5 4.5"/><circle cx="9" cy="8.8" r="1.4"/><path d="M18 2.6l.85 2.05 2.05.85-2.05.85L18 8.4l-.85-2.05-2.05-.85 2.05-.85z" fill="currentColor" stroke-width="1"/>'),
         bolt: P('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
         refresh: P('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
         left: P('<path d="m15 18-6-6 6-6"/>'),
