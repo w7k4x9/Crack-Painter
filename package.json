@@ -1,6 +1,6 @@
 {
   "name": "crack-painter",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Crack(crack.wrtn.ai) 장면 삽화 생성 유저스크립트",
   "type": "module",

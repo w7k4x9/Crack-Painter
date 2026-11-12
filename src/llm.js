@@ -145,16 +145,32 @@ const LLM = (() => {
 
     async function callDeepSeek({ key, model, thinking, system, user, signal }) {
         if (!key) throw Object.assign(new Error('DeepSeek 키가 없어. 설정 → 연결에서 넣어줘.'), { code: 'NO_KEY', pane: 'api' });
-        const think = thinking === 'fast' ? { thinking: { type: 'disabled' } }
-            : { thinking: { type: 'enabled' }, reasoning_effort: thinking === 'deep' ? 'max' : 'high' };
-        const data = await Net.request({
+        const body = {
+            model,
+            messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+            stream: false,
+            response_format: { type: 'json_object' },
+            ...(thinking === 'fast' ? { thinking: { type: 'disabled' } } : { thinking: { type: 'enabled' }, reasoning_effort: thinking === 'deep' ? 'max' : 'high' })
+        };
+        const send = () => Net.request({
             method: 'POST',
             url: 'https://api.deepseek.com/chat/completions',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-            data: { model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], stream: false, response_format: { type: 'json_object' }, ...think },
+            data: body,
             signal,
             timeout: 180000
         });
+        let data;
+        try {
+            data = await send();
+        } catch (e) {
+            // 400이면 선택 옵션(생각 모드·JSON 강제)을 빼고 한 번만 다시. 그래도 안 되면 원래 오류를 보여준다.
+            if (e.status !== 400) throw e;
+            delete body.thinking;
+            delete body.reasoning_effort;
+            delete body.response_format;
+            try { data = await send(); } catch (_) { throw e; }
+        }
         const text = String(data?.choices?.[0]?.message?.content || '').trim();
         if (!text) throw new Error('DeepSeek 응답이 비었어.');
         return text;
