@@ -126,6 +126,12 @@ a.btn { text-decoration: none; color: inherit; }
 .btn.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent)); color: #fff; box-shadow: 0 .5px 1px rgba(0,0,0,.25), inset 0 .5px 0 rgba(255,255,255,.25); }
 .btn.primary:hover { background: var(--accent); }
 .btn.danger { color: var(--red); }
+.btn.armed, .icon-btn.armed { background: var(--red) !important; color: #fff !important; width: auto; padding: 0 8px; gap: 4px; font-size: 12px; font-weight: 600; }
+.icon-btn.armed svg { width: 13px; height: 13px; }
+.menu.ask { min-width: 300px; }
+.menu.ask .row input { flex: 1; min-width: 0; }
+.menu.ask button.btn { width: auto; flex: none; min-height: 24px; padding: 0 12px; justify-content: center; color: #fff; }
+.menu.ask button.btn:hover { background: var(--accent); }
 .btn.lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }
 .btn.ghost { background: transparent; box-shadow: none; }
 .btn.ghost:hover { background: var(--hover); }
@@ -252,6 +258,10 @@ a.btn { text-decoration: none; color: inherit; }
 .note.warn svg { color: var(--orange); }
 .note.error svg { color: var(--red); }
 
+details.adv > summary { list-style: none; cursor: default; margin-top: 18px; }
+details.adv > summary::-webkit-details-marker { display: none; }
+details.adv > summary svg { width: 10px; height: 10px; transition: transform .15s; }
+details.adv[open] > summary svg { transform: rotate(90deg); }
 details.raw { margin-top: 12px; }
 details.raw summary { cursor: default; font-size: 11px; font-weight: 600; color: var(--text2); list-style: none; display: flex; align-items: center; gap: 4px; padding: 4px; }
 details.raw summary::-webkit-details-marker { display: none; }

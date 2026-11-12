@@ -8,6 +8,8 @@ const Studio = (() => {
     'use strict';
     const { esc, icons } = UI;
     let S = null; // 현재 세션
+    // 창을 실수로 닫아도(바깥 클릭·Esc) 고치던 내용을 메시지별로 기억했다가 다시 열면 되살린다
+    const drafts = new Map();
 
     function open(markdown) {
         const roomId = Crack.roomId();
@@ -30,9 +32,15 @@ const Studio = (() => {
             controller: null,
             rec: null,
             view: -1,
-            request: ''
+            request: '',
+            dirty: false,
+            advanced: false
         };
-        S.win = UI.openWindow({ id: 'studio', className: 'studio', title: '삽화 스튜디오', subtitle: '', onClose: () => { if (S?.status === 'analyzing') S.controller?.abort(); S = null; } });
+        S.win = UI.openWindow({ id: 'studio', className: 'studio', title: '삽화 스튜디오', subtitle: '', onClose: () => {
+            if (S?.status === 'analyzing') S.controller?.abort();
+            if (S?.state && S.dirty) drafts.set(S.messageKey, { state: App.clone(S.state), gen: { ...S.gen }, styleTouched: S.styleTouched, at: Date.now() });
+            S = null;
+        } });
         S.win.setRight(`
             <select class="select" data-model style="width:auto">${UI.options(Object.values(Core.MODELS).map(m => [m.id, `NAI ${m.label}`]), S.model)}</select>
             <button class="icon-btn" data-act="gallery" title="삽화 갤러리">${icons.photo}</button>
@@ -49,6 +57,17 @@ const Studio = (() => {
         const map = await App.records(S.roomId);
         const sess = S;
         sess.rec = map.get(sess.messageKey) || null;
+        if (sess.rec?.history?.length) sess.view = sess.rec.index;
+        const draft = drafts.get(sess.messageKey);
+        if (draft) {
+            sess.state = draft.state;
+            sess.gen = { ...sess.gen, ...draft.gen };
+            sess.styleTouched = draft.styleTouched;
+            sess.dirty = true;
+            sess.restored = true;
+            render();
+            return;
+        }
         if (sess.rec?.history?.length) {
             const h = sess.rec.history[sess.rec.index];
             sess.view = sess.rec.index;
@@ -78,6 +97,8 @@ const Studio = (() => {
             if (prev && sess.styleTouched) state.style = prev.style;
             sess.state = state;
             sess.request = '';
+            sess.dirty = true;
+            sess.restored = false;
         } catch (err) {
             if (S !== sess) return;
             if (err?.name !== 'AbortError') { sess.error = err.message; App.reportError(err, '장면 분석 실패'); }
@@ -109,6 +130,9 @@ const Studio = (() => {
             if (S !== sess) { UI.toast({ title: '삽화 완성', kind: 'ok', body: '채팅에 넣었어.' }); return; }
             sess.rec = rec;
             sess.view = rec.index;
+            sess.dirty = false;
+            sess.restored = false;
+            drafts.delete(sess.messageKey);
             sess.lastSeed = seed;
             if (!UI.windows.has('studio')) UI.toast({ title: '삽화 완성', kind: 'ok', body: sess.state.title || '채팅에 넣었어.' });
         } catch (err) {
@@ -186,7 +210,7 @@ const Studio = (() => {
             <div class="slot-head"><span class="dot c-style" style="background:var(--c)"></span><span class="name">스타일</span><span class="muted tiny">작가 · 화풍 · 퀄리티 — 직접 고정</span>
               <span class="grow"></span>
               <button class="btn ghost" data-act="preset">프리셋</button>
-              <button class="btn ghost" data-act="save-style" title="설정의 기본 스타일로 저장">기본으로</button>
+              <button class="btn ghost" data-act="save-style" title="모든 장면에 쓰는 기본 스타일로 저장">기본값으로 저장</button>
             </div>
             <textarea class="ta mono" data-bind="style.pos" spellcheck="false" placeholder="artist:이름, 화풍 태그…  (캐릭터 칸에 넣은 작가 태그도 여기로 올라와)">${esc(st.style.pos)}</textarea>
           </div>
@@ -204,7 +228,7 @@ const Studio = (() => {
           <div class="item"><button class="btn ghost" data-act="add-char">${icons.plus}인물 추가</button><span class="grow"></span><span class="muted tiny">${Core.model(S.model).label} 최대 ${Core.model(S.model).maxChars}명</span></div>
         </div>
 
-        <div class="section-title">네거티브</div>
+        <details class="adv" ${S.advanced ? 'open' : ''}><summary class="section-title">${icons.disclose}<span>네거티브 · UC</span><span class="muted" style="font-weight:400">필요할 때만</span></summary>
         <div class="group">
           <div class="slot">
             <div class="row"><span class="sub grow">기본 네거티브 <span class="muted" style="font-weight:400">스타일과 같이 저장</span></span>
@@ -214,6 +238,7 @@ const Studio = (() => {
             <textarea class="ta mono short" data-bind="neg" spellcheck="false" placeholder="">${esc(st.neg)}</textarea>
           </div>
         </div>
+        </details>
 
         <div class="notes" data-notes></div>
         <details class="raw"><summary>${icons.disclose}실제로 보내는 내용</summary><pre data-raw></pre></details>`;
@@ -236,7 +261,8 @@ const Studio = (() => {
               <span class="badge tok" data-tok="char${i}"></span>
               <span class="grow"></span>
               ${coords ? UI.seg(`pos${i}`, [['left', '좌'], ['center', '중'], ['right', '우']], c.position || '', 'sm') : ''}
-              ${c.source === 'saved' ? `<button class="icon-btn sm" data-act="reload-look" data-i="${i}" title="저장된 외형으로 되돌리기">${icons.refresh}</button>` : ''}
+              ${c.source === 'saved' ? `<button class="icon-btn sm" data-act="reload-look" data-i="${i}" title="저장된 외형으로 되돌리기">${icons.refresh}</button>`
+                : `<button class="btn ghost" data-act="register-extra" data-i="${i}" title="다음 장면부터 같은 외형으로 그리게 캐릭터로 저장">${icons.plus}등록</button>`}
               <button class="icon-btn sm" data-act="remove-char" data-i="${i}" title="이 칸 빼기">${icons.x}</button>
               ${UI.switchHtml(`char${i}`, !off)}
             </div>
@@ -245,8 +271,8 @@ const Studio = (() => {
             <span class="sub">행동 · 표정 · 자세 <span class="muted" style="font-weight:400">AI</span></span>
             <textarea class="ta mono short" data-bind="chars.${i}.action" spellcheck="false" placeholder="sitting, looking at viewer…">${esc(c.action)}</textarea>
             ${v5 ? `<span class="sub">인물 문장 <span class="muted" style="font-weight:400">V5</span></span><textarea class="ta short" data-bind="chars.${i}.caption" spellcheck="false">${esc(c.caption)}</textarea>` : ''}
-            <span class="sub">UC</span>
-            <input class="field mono" data-bind="chars.${i}.uc" spellcheck="false" value="${esc(c.uc)}">
+            ${S.advanced || c.uc ? `<span class="sub">UC</span>
+            <input class="field mono" data-bind="chars.${i}.uc" spellcheck="false" value="${esc(c.uc)}">` : ''}
           </div>`;
     }
 
@@ -314,7 +340,8 @@ const Studio = (() => {
         if (notes) {
             const list = [...a.notes];
             if (S.error) list.unshift({ level: 'error', text: S.error });
-            notes.innerHTML = list.map(n => `<div class="note ${n.level}">${n.level === 'info' ? icons.info : icons.warn}<span>${esc(n.text)}</span></div>`).join('');
+            if (S.restored) list.unshift({ level: 'info', text: '창을 닫기 전에 고치던 내용을 불러왔어.', act: ['discard-draft', '버리고 처음부터'] });
+            notes.innerHTML = list.map(n => `<div class="note ${n.level}">${n.level === 'info' ? icons.info : icons.warn}<span class="grow">${esc(n.text)}</span>${n.act ? `<button class="btn" data-act="${n.act[0]}">${esc(n.act[1])}</button>` : ''}</div>`).join('');
         }
 
         // 전송 미리보기
@@ -344,6 +371,7 @@ const Studio = (() => {
             if (!S) return;
             const t = ev.target;
             if (t.dataset.bind) {
+                S.dirty = true;
                 setPath(S.state, t.dataset.bind, t.value);
                 if (t.tagName === 'TEXTAREA') autosize(t);
                 if (t.dataset.bind.startsWith('style.')) S.styleTouched = true;
@@ -374,6 +402,10 @@ const Studio = (() => {
                 render();
             }
         });
+        el.addEventListener('toggle', ev => {
+            if (!S || !ev.target.matches?.('details.adv')) return;
+            if (S.advanced !== ev.target.open) { S.advanced = ev.target.open; render(); }
+        }, true);
         el.addEventListener('keydown', ev => {
             if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') { ev.preventDefault(); generate(); }
             if (ev.key === 'Enter' && ev.target.dataset?.request !== undefined) { ev.preventDefault(); reanalyze(); }
@@ -424,11 +456,11 @@ const Studio = (() => {
                 { label: '설정의 기본 스타일 불러오기', value: 'default' },
                 { label: '지금 스타일을 새 프리셋으로 저장…', value: 'new' }
             ];
-            UI.menu(btn, items, it => {
+            UI.menu(btn, items, async it => {
                 if (!it.value) return;
                 if (it.value === 'default') { S.state.style = { ...Store.settings().style }; S.styleTouched = false; }
                 else if (it.value === 'new') {
-                    const name = prompt('프리셋 이름', '');
+                    const name = await UI.ask(btn, { title: '새 스타일 프리셋', placeholder: '이름 · 예: 수채화 kawacy' });
                     if (!name) return;
                     const { pos, neg } = S.state.style;
                     Store.update(d => { d.presets.push({ id: Store.uid('ps'), name: name.trim().slice(0, 40), pos, neg }); });
@@ -453,6 +485,22 @@ const Studio = (() => {
                 else if (it.value?.id) { const c = it.value; S.state.chars.push({ id: c.id, source: 'saved', name: c.name, aliases: c.aliases, look: Core.joinTags([c.look, c.outfit]), action: '', caption: '', uc: c.uc, position: null, enabled: true }); }
                 render();
             });
+        },
+        'discard-draft': () => {
+            drafts.delete(S.messageKey);
+            S.restored = false;
+            S.dirty = false;
+            const h = S.rec?.history?.[S.rec.index];
+            if (h) { S.state = App.clone(h.state); render(); }
+            else { S.state = null; render(); analyze(); }
+        },
+        'register-extra': btn => {
+            const c = S.state.chars[Number(btn.dataset.i)];
+            if (!c.look.trim()) return UI.toast({ title: '외형을 먼저 채워줘', body: '외형·의상 칸이 비어 있으면 등록해도 쓸 게 없어.' });
+            c.id = App.registerExtra(c);
+            c.source = 'saved';
+            render();
+            UI.toast({ title: `'${c.name}'을(를) 등록했어`, kind: 'ok', body: '이 채팅방에서 켜졌어. 이름과 외형은 설정 → 캐릭터에서 다듬을 수 있어.' });
         },
         'remove-char': btn => { S.state.chars.splice(Number(btn.dataset.i), 1); render(); },
         'reload-look': btn => {
@@ -485,7 +533,8 @@ const Studio = (() => {
             S.gen.seed = String(h.seed);
             render();
         },
-        'delete-view': async () => {
+        'delete-view': async btn => {
+            if (!UI.armed(btn, '삭제')) return;
             await App.removeHistoryItem(S.roomId, S.messageKey, S.view);
         }
     };

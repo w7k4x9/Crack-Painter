@@ -183,6 +183,7 @@ const Settings = (() => {
             <div class="item col"><span class="sub">기본 의상 · 장면에서 갈아입으면 AI가 바꿔</span><textarea class="ta mono short" data-c="outfit" spellcheck="false" placeholder="white shirt, black skirt">${val(c.outfit)}</textarea></div>
             <div class="item col"><span class="sub">이 인물만의 UC</span><input class="field mono" data-c="uc" spellcheck="false" value="${val(c.uc)}"></div>
           </div>
+          <p class="footnote">입력하면 바로 저장돼. 따로 저장 버튼은 없어.</p>
           ${styleTags.length ? `<div class="notes"><div class="note warn">${icons.warn}<span class="grow">작가·화풍 태그가 섞여 있어: <code>${esc(styleTags.join(', '))}</code><br>이건 그림 전체에 걸리는 태그라 캐릭터 칸이 아니라 베이스에 있어야 해.</span><button class="btn" data-act="char-move-style">스타일로 옮기기</button></div></div>` : ''}`;
     }
 
@@ -370,7 +371,7 @@ const Settings = (() => {
             if (act === 'test-nai') testNai();
             else if (act === 'test-llm') testLlm();
             else if (act === 'preset-new') {
-                const name = prompt('프리셋 이름', '');
+                const name = await UI.ask(btn, { title: '새 스타일 프리셋', placeholder: '이름 · 예: 수채화 kawacy' });
                 if (!name) return;
                 Store.update(d => { d.presets.push({ id: Store.uid('ps'), name: name.trim().slice(0, 40), pos: d.style.pos, neg: d.style.neg }); });
                 render();
@@ -392,8 +393,7 @@ render();
                 win.el.querySelector('[data-c="name"]')?.focus();
             } else if (act === 'char-back') { selChar = null; render(); }
             else if (act === 'char-del') {
-                const ok = await App.confirmToast('이 인물을 지울까?', '모든 채팅방에서 빠져.', '삭제', true);
-                if (!ok) return;
+                if (!UI.armed(btn, '모든 방에서 삭제')) return;
                 const id = selChar;
                 Store.update(d => {
                     d.characters = d.characters.filter(x => x.id !== id);
@@ -418,8 +418,7 @@ render();
             } else if (act === 'goto-chars') { pane = 'chars'; render(); }
             else if (act === 'clear-room') {
                 if (!roomId) return;
-                const ok = await App.confirmToast('이 채팅방 삽화를 모두 지울까?', '되돌릴 수 없어.', '모두 삭제', true);
-                if (!ok) return;
+                if (!UI.armed(btn, '정말 모두 삭제')) return;
                 for (const r of await Store.roomRecords(roomId)) await Store.deleteRecord(roomId, r.messageKey);
                 document.querySelectorAll('.cp-figure').forEach(f => f.remove());
                 fillStorage();

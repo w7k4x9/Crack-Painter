@@ -178,6 +178,7 @@ const Gallery = (() => {
                 G.win.close();
                 Studio.open(md);
             } else if (act === 'delete' && it) {
+                if (!UI.armed(ev.target.closest('[data-act]'), '삭제')) return;
                 await App.removeHistoryItem(it.roomId, it.messageKey, it.index);
                 const keep = G.view;
                 await load();

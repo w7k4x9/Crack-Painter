@@ -178,8 +178,34 @@ const App = (() => {
         return { model: s.model, gen: { ...s.gen } };
     }
 
+    // 시작 전에 필요한 키가 있는지 본다. 없으면 바로 설정의 그 칸을 연다.
+    function ready() {
+        const s = Store.settings();
+        const k = Store.secrets();
+        const missing = [];
+        if (!k.naiKey) missing.push('NovelAI 토큰');
+        if (s.analyzer.provider === 'gemini' && !k.geminiKey) missing.push('Gemini 키');
+        if (s.analyzer.provider === 'deepseek' && !k.deepseekKey) missing.push('DeepSeek 키');
+        if (!missing.length) return true;
+        Settings.open('api');
+        UI.toast({ title: '시작하려면 키가 필요해', body: `빠진 것: ${missing.join(', ')}. 분석 AI 없이 쓰려면 '사용할 AI'를 '안 씀'으로 바꿔.`, kind: 'info', timeout: 7000 });
+        return false;
+    }
+
+    // 스튜디오의 엑스트라 칸을 등록 인물로 저장하고 이 방에서 켠다
+    function registerExtra(slot) {
+        const id = Store.uid('ch');
+        const roomId = Crack.roomId();
+        Store.update(d => {
+            d.characters.push({ id, name: slot.name, aliases: [], look: slot.look || '', outfit: '', uc: slot.uc || '' });
+            if (roomId) { const r = d.rooms[roomId] = d.rooms[roomId] || {}; r.chars = [...new Set([...(r.chars || []), id])]; }
+        });
+        return id;
+    }
+
     // ⚡ 바로 생성: 분석 + 생성을 알림 하나로
     async function quick(markdown) {
+        if (!ready()) return;
         const roomId = Crack.roomId();
         const messageKey = Crack.messageKey(markdown);
         if (running.has(messageKey)) return UI.toast({ title: '이미 만들고 있어', body: '이 답변의 삽화를 생성 중이야.' });
@@ -301,6 +327,7 @@ const App = (() => {
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 4000);
         } else if (act === 'delete') {
+            if (!UI.armed(fig.querySelector('[data-cp="delete"]'), '삭제')) return;
             await removeHistoryItem(roomId, key, rec.index);
         }
     }
@@ -309,8 +336,6 @@ const App = (() => {
         const map = await records(roomId);
         const rec = map.get(key);
         if (!rec) return;
-        const ok = await confirmToast('이 삽화를 지울까?', rec.history.length > 1 ? `${rec.history.length}장 중 ${index + 1}번째 장만 지워.` : '이 답변의 마지막 삽화야.', '삭제', true);
-        if (!ok) return;
         const [gone] = rec.history.splice(index, 1);
         if (gone) { await Store.deleteImage(gone.imageId).catch(() => {}); forgetImage(gone.imageId); }
         if (!rec.history.length) {
@@ -370,7 +395,7 @@ const App = (() => {
         const msg = Crack.assistantMessages(group || document).find(m => m.footer.contains(btn));
         if (!msg) return;
         if (btn.classList.contains('cp-quick')) quick(msg.markdown);
-        else Studio.open(msg.markdown);
+        else if (ready()) Studio.open(msg.markdown);
     }, true);
 
     function enabled() {
@@ -512,5 +537,5 @@ const App = (() => {
         } catch (_) {}
     }
 
-    return { start, scan, analyze, generate, quick, reroll, records, imageUrl, renderFigure, removeHistoryItem, reportError, confirmToast, running, settingsForGen, clone, enabled, setEnabled };
+    return { start, scan, ready, registerExtra, analyze, generate, quick, reroll, records, imageUrl, renderFigure, removeHistoryItem, reportError, confirmToast, running, settingsForGen, clone, enabled, setEnabled };
 })();

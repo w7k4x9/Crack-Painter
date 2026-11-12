@@ -15,6 +15,8 @@
 .cp-figure:hover .cp-bar, .cp-figure:focus-within .cp-bar, .cp-figure.cp-touch .cp-bar { opacity: 1; transform: translate(-50%, 0); }
 .cp-figure .cp-bar button { all: unset; display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 26px; padding: 0 4px; border-radius: 7px; cursor: pointer; color: #fff; }
 .cp-figure .cp-bar button:hover { background: rgba(255,255,255,.16); }
+.cp-figure .cp-bar button.cp-armed { background: #ff3b30; padding: 0 8px; gap: 4px; font-size: 12px; font-weight: 600; }
+.cp-figure .cp-bar button.cp-armed svg { width: 13px; height: 13px; }
 .cp-figure .cp-bar button:disabled { opacity: .35; pointer-events: none; }
 .cp-figure .cp-bar svg { width: 15px; height: 15px; display: block; }
 .cp-figure .cp-bar .cp-count { padding: 0 4px; font-variant-numeric: tabular-nums; opacity: .9; font-size: 11.5px; }

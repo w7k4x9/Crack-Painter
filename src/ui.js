@@ -164,6 +164,9 @@ const UI = (() => {
             if (top !== api) return;
             if (ev.key === 'Escape' && !ev.target.closest?.('.menu')) {
                 if (closeMenu()) { ev.stopPropagation(); return; }
+                // 입력 중이면 창을 닫지 않고 입력칸에서만 빠져나온다
+                const t = ev.composedPath?.()[0];
+                if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) { ev.stopPropagation(); t.blur(); return; }
                 ev.stopPropagation();
                 api.close();
             }
@@ -222,6 +225,57 @@ const UI = (() => {
         if (!w) return;
         w.dockLabel = label;
         if (w.minimized) renderDock();
+    }
+
+    // ── 누른 자리에서 확인: 첫 클릭은 빨갛게 "한 번 더", 3초 안에 다시 누르면 실행 ──
+    function armed(btn, label = '한 번 더') {
+        if (btn.dataset.armed === '1') {
+            clearTimeout(btn._armTimer);
+            btn.dataset.armed = '';
+            btn.classList.remove('armed', 'cp-armed');
+            if (btn._armHtml != null) btn.innerHTML = btn._armHtml;
+            return true;
+        }
+        btn.dataset.armed = '1';
+        btn._armHtml = btn.innerHTML;
+        btn.classList.add('armed', 'cp-armed');
+        btn.innerHTML = `${icons.trash}<span>${esc(label)}</span>`;
+        btn._armTimer = setTimeout(() => {
+            btn.dataset.armed = '';
+            btn.classList.remove('armed', 'cp-armed');
+            btn.innerHTML = btn._armHtml;
+        }, 3000);
+        return false;
+    }
+
+    // 작은 입력 팝오버 (브라우저 기본 prompt 대신)
+    function ask(anchor, { title = '', placeholder = '', value = '', ok = '저장' } = {}) {
+        return new Promise(resolve => {
+            closeMenu();
+            mount();
+            menuEl = document.createElement('div');
+            menuEl.className = 'menu ask';
+            menuEl.innerHTML = `${title ? `<div class="hd">${esc(title)}</div>` : ''}<div class="row" style="padding:4px 6px 6px"><input class="field" placeholder="${esc(placeholder)}" value="${esc(value)}"><button class="btn primary" data-ok>${esc(ok)}</button></div>`;
+            layer.appendChild(menuEl);
+            const r = anchor.getBoundingClientRect();
+            const m = menuEl.getBoundingClientRect();
+            menuEl.style.left = `${Math.max(8, Math.min(innerWidth - m.width - 8, r.left))}px`;
+            menuEl.style.top = `${r.bottom + 4 + m.height > innerHeight ? Math.max(8, r.top - m.height - 4) : r.bottom + 4}px`;
+            const input = menuEl.querySelector('input');
+            const el = menuEl;
+            let done = false;
+            const finish = v => { if (done) return; done = true; if (menuEl === el) closeMenu(); resolve(v); };
+            input.focus();
+            input.addEventListener('keydown', ev => {
+                if (ev.key === 'Enter') { ev.preventDefault(); finish(input.value.trim() || null); }
+                if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); finish(null); }
+            });
+            el.querySelector('[data-ok]').onclick = () => finish(input.value.trim() || null);
+            setTimeout(() => {
+                const off = ev => { if (!ev.composedPath().includes(el)) { document.removeEventListener('pointerdown', off, true); finish(null); } };
+                document.addEventListener('pointerdown', off, true);
+            });
+        });
     }
 
     // ── 팝오버 메뉴 ─────────────────────────────────────
@@ -324,5 +378,5 @@ const UI = (() => {
         return `<label class="switch"><input type="checkbox" data-sw="${esc(name)}" ${checked ? 'checked' : ''}><span></span></label>`;
     }
 
-    return { esc, icons, mount, injectPageStyle, openWindow, setDockLabel, menu, closeMenu, toast, lightbox, spinner, seg, options, switchHtml, windows };
+    return { esc, icons, mount, injectPageStyle, openWindow, setDockLabel, menu, closeMenu, armed, ask, toast, lightbox, spinner, seg, options, switchHtml, windows };
 })();
