@@ -27,7 +27,7 @@ const Settings = (() => {
             return;
         }
         win = UI.openWindow({
-            id: 'settings', className: 'settings', title: 'Crack Painter 설정', sidebarTitle: true,
+            id: 'settings', className: 'settings', title: '크랙 페인터 설정', sidebarTitle: true,
             onClose: () => { win = null; unsub?.(); unsub = null; }
         });
         win.body.innerHTML = `

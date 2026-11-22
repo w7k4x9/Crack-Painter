@@ -326,7 +326,7 @@ const UI = (() => {
             const kind = opts.kind || 'info';
             el.innerHTML = `
               <div class="app ${kind === 'err' ? 'err' : kind === 'ok' ? 'ok' : ''}">${kind === 'err' ? icons.warn : kind === 'ok' ? icons.check : icons.brush}</div>
-              <div class="txt"><b>${esc(opts.title || 'Crack Painter')}</b>${opts.body ? `<p>${esc(opts.body)}</p>` : ''}
+              <div class="txt"><b>${esc(opts.title || '크랙 페인터')}</b>${opts.body ? `<p>${esc(opts.body)}</p>` : ''}
                 ${opts.progress ? '<div class="prog"><i></i></div>' : ''}
                 ${opts.actions?.length ? `<div class="acts">${opts.actions.map((a, i) => `<button class="btn ${a.primary ? 'primary' : ''}" data-i="${i}">${esc(a.label)}</button>`).join('')}</div>` : ''}
               </div>

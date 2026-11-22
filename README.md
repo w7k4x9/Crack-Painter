@@ -1,4 +1,4 @@
-# Crack Painter
+# 크랙 페인터
 
 크랙(crack.wrtn.ai) 채팅 답변을 읽고 장면을 골라 NovelAI로 삽화를 그려 넣는 유저스크립트.
 
@@ -8,7 +8,7 @@
 
 1. [Tampermonkey](https://www.tampermonkey.net/) 또는 [Violentmonkey](https://violentmonkey.github.io/) 설치
 2. **[crack-painter.user.js 설치하기](https://raw.githubusercontent.com/w7k4x9/crack-painter/main/crack-painter.user.js)**
-3. 크랙 채팅방 오른쪽 메뉴 → **AI 삽화 (Crack Painter)** 를 눌러 설정 열기
+3. 크랙 채팅방 오른쪽 메뉴 → **AI 삽화 (크랙 페인터)** 를 눌러 설정 열기
 4. **연결**에 키를 넣고 확인을 눌러
    - **NovelAI 토큰** (`pst-…`): 그림 생성용
    - **Gemini 키** (`AIza…`, [AI Studio](https://aistudio.google.com/apikey)에서 무료) 또는 DeepSeek 키: 채팅을 읽고 장면을 고르는 용도

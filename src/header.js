@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Crack Painter
+// @name         크랙 페인터
 // @namespace    https://github.com/w7k4x9/crack-painter
 // @version      __VERSION__
 // @description  크랙(crack.wrtn.ai) 채팅 장면을 NovelAI 삽화로. 작가·화풍은 베이스, 인물은 캐릭터 칸으로 정확히 나눠 보냄.
