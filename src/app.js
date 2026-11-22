@@ -120,7 +120,8 @@ const App = (() => {
             context: Crack.contextBefore(markdown, Number(s.ui.contextTurns) || 4),
             paragraphs: Crack.paragraphs(markdown),
             fixedParagraph,
-            request
+            request,
+            camera: s.scene.camera || 'pov'
         };
     }
 

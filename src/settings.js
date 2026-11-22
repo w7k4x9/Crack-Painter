@@ -225,6 +225,7 @@ const Settings = (() => {
           <div class="section-title">인원</div>
           <div class="group">
             <div class="item"><span class="label"><b>그릴 인원</b><small>1명이면 장면의 중심 인물 한 명만 solo로 그려. 채팅방마다 따로 정할 수도 있어.</small></span>${UI.seg('people', [['auto', '자동'], ['1', '1명'], ['2', '최대 2명'], ['3', '최대 3명']], String(s.scene.people))}</div>
+            <div class="item"><span class="label"><b>카메라</b><small>POV 스냅샷: 내 눈으로 몰래 찍은 듯한 구도(pov, candid shot, snapshot). 자유: 장면마다 AI가 구도를 골라.</small></span>${UI.seg('camera', [['pov', 'POV 스냅샷'], ['free', '자유']], String(s.scene.camera || 'pov'))}</div>
           </div>
           <div class="section-title">모델</div>
           <div class="group">
@@ -346,6 +347,7 @@ const Settings = (() => {
                     else if (name === 'size') d.gen.size = v;
                     else if (name === 'qualityV5') d.gen.qualityV5 = v;
                     else if (name === 'people') d.scene.people = v;
+                    else if (name === 'camera') d.scene.camera = v;
                     else if (name === 'room-people' && Crack.roomId()) { const r = d.rooms[Crack.roomId()] = d.rooms[Crack.roomId()] || {}; r.people = v; }
                 });
                 render();

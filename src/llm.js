@@ -77,7 +77,18 @@ const LLM = (() => {
             : `[인원 · 최우선] characters 는 최대 ${n}명. 중요한 순서대로 넣는다.${who}`;
     }
 
-    function userPrompt({ characters, note, context, paragraphs, fixedParagraph, request, people, focus }) {
+    // 1.5.0 카메라 기본값: 유저(1인칭 화자) 눈으로 몰래 찍은 듯한 스냅사진.
+    function cameraRule(camera) {
+        if (camera === 'free') return '';
+        return `[카메라 · 기본]
+- 이 그림은 유저(1인칭 화자)의 눈높이에서 찍은 한 장의 스냅사진이다. scene.composition 맨 앞에 pov, candid shot, snapshot 을 넣는다.
+- 인물은 카메라를 의식하지 않는 자연스러운 순간으로 잡는다. 포즈를 잡거나 정면을 보고 서 있는 증명사진·전신 컷은 피한다.
+- 원문에서 인물이 유저를 보고 있을 때만 looking at viewer 를 쓴다. 그 밖에는 하던 행동·시선을 그대로 둔다.
+- 거리와 각도는 유저가 실제로 있는 자리 기준이다(마주 앉음 → 정면 가까이, 옆에 누움 → from side 가까이, 올려다봄 → from below).
+- 원문에 유저의 손·팔이 그 순간 화면에 들어오면 pov hands 를 composition 에 넣는다. 유저의 얼굴·몸은 그리지 않는다.`;
+    }
+
+    function userPrompt({ characters, note, context, paragraphs, fixedParagraph, request, people, focus, camera }) {
         const chars = characters.length
             ? characters.map(c => `- id=${c.id} | 이름=${c.name}${c.aliases?.length ? ` | 별칭=${c.aliases.join(', ')}` : ''} | 외형(참고용, 다시 쓰지 말 것)=${Core.joinTags([c.look, c.outfit]).slice(0, 200)}`).join('\n')
             : '(등록된 인물 없음 · 보이는 인물은 모두 미등록으로 look 을 채운다)';
@@ -89,6 +100,7 @@ const LLM = (() => {
             `[대상 답변 · 문단 번호]\n${paras}`,
             Number.isInteger(fixedParagraph) ? `[고정] insertAfterParagraph=${fixedParagraph} 인 문단의 순간을 그린다. 다른 장면으로 옮기지 않는다.` : '',
             peopleRule(people, focus),
+            cameraRule(camera),
             request ? `[사용자 수정 요청 · 최우선]\n${request}` : ''
         ].filter(Boolean).join('\n\n');
     }

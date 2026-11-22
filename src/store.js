@@ -148,7 +148,7 @@ const Store = (() => {
             characters: [],
             rooms: {},
             ui: { contextTurns: 4 },
-            scene: { people: 'auto' },
+            scene: { people: 'auto', camera: 'pov' },
             folder: { enabled: false, perRoom: true, download: false }
         };
     }
