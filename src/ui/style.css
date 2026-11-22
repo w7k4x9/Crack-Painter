@@ -154,3 +154,6 @@ details.sent .inner { padding: 0 10px 10px; display: flex; flex-direction: colum
 .viewer .stage { flex: 1; display: grid; place-items: center; padding: 24px; min-width: 0; }
 .viewer .stage img { max-width: 100%; max-height: 100%; border-radius: 6px; }
 .viewer aside { width: 320px; background: var(--bg-solid); overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+.saved { display: inline-flex; align-items: center; gap: 4px; transition: color .2s; }
+.saved.on { color: var(--ok); font-weight: 600; }

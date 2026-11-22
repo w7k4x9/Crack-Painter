@@ -29,7 +29,10 @@ const DB = (() => {
             return typeof v === 'string' ? JSON.parse(v) : v;
         } catch (_) { return U.clone(fallback); }
     }
-    function write(key, value) { GM_setValue(key, JSON.stringify(value)); }
+    function write(key, value) {
+        GM_setValue(key, JSON.stringify(value));
+        emit('saved', key);
+    }
 
     function settings() {
         const s = read(K.settings, {});
@@ -67,6 +70,34 @@ const DB = (() => {
         for (const [name, key] of Object.entries(K)) {
             GM_addValueChangeListener(key, (_k, _o, _n, remote) => { if (remote) emit(name); });
         }
+    }
+
+    // ── 설정 백업 ──
+    // 설정·작품(+선택하면 키)을 파일 하나로. 삽화 이미지는 넣지 않는다.
+    function backup(withKeys = false) {
+        const out = { app: 'crack-painter', kind: 'settings-backup', version: 1, exportedAt: new Date().toISOString(), settings: settings(), works: works() };
+        if (withKeys) out.keys = keys();
+        return out;
+    }
+
+    function restore(data) {
+        if (!data || data.app !== 'crack-painter' || data.kind !== 'settings-backup') throw new Error('크랙 페인터 설정 백업 파일이 아니야.');
+        const counts = { works: 0, keys: 0 };
+        if (data.settings && typeof data.settings === 'object') patchSettings({ ...data.settings, links: { ...settings().links, ...(data.settings.links || {}) } });
+        if (Array.isArray(data.works)) {
+            const list = works();
+            for (const w of data.works) {
+                if (!w?.name || !Array.isArray(w.chars)) continue;
+                const i = list.findIndex(x => x.id === w.id || U.looseName(x.name) === U.looseName(w.name));
+                if (i >= 0) list[i] = { ...w, id: list[i].id }; else list.push(w);
+                counts.works += 1;
+            }
+            saveWorks(list);
+        }
+        if (data.keys && typeof data.keys === 'object') {
+            for (const [k, v] of Object.entries(data.keys)) if (['nai', 'gemini', 'claude', 'openai'].includes(k) && v) { setKey(k, v); counts.keys += 1; }
+        }
+        return counts;
     }
 
     // ── IndexedDB: 삽화 ──────────────────────────────────
@@ -154,5 +185,5 @@ const DB = (() => {
         return moved;
     }
 
-    return { DEFAULTS, on, emit, settings, patchSettings, keys, setKey, works, saveWorks, putWork, removeWork, watch, putShot, deleteShot, getShot, roomShots, allShots, kvGet, kvSet, migrate };
+    return { DEFAULTS, on, emit, backup, restore, settings, patchSettings, keys, setKey, works, saveWorks, putWork, removeWork, watch, putShot, deleteShot, getShot, roomShots, allShots, kvGet, kvSet, migrate };
 })();

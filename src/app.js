@@ -117,7 +117,7 @@ const App = (() => {
         const a = h('a', { href: url(shot), download: fileName(shot) });
         document.body.append(a);
         a.click();
-        a.remove();
+        setTimeout(() => { a.remove(); }, 1000);
     }
 
     function url(shot) {

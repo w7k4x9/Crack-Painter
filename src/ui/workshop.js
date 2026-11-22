@@ -6,7 +6,15 @@ const Workshop = (() => {
     function open(tab = 'works') {
         if (W) { W.tab = tab; draw(); return; }
         const seg = h('div', { class: 'tabs' });
-        const win = Kit.windowed({ title: '크랙 페인터', toolbar: [seg], onClose: () => { W = null; } });
+        const saved = h('span', { class: 'saved faint' }, '입력하면 바로 저장돼');
+        let flash = null;
+        const off = DB.on('saved', () => {
+            saved.replaceChildren(Kit.icon('check', 13), '저장됨');
+            saved.classList.add('on');
+            clearTimeout(flash);
+            flash = setTimeout(() => { saved.classList.remove('on'); saved.textContent = '입력하면 바로 저장돼'; }, 1600);
+        });
+        const win = Kit.windowed({ title: '크랙 페인터', toolbar: [saved, seg], onClose: () => { off(); W = null; } });
         W = { win, seg, tab, workId: null, galleryScope: 'room' };
         draw();
     }
@@ -198,10 +206,46 @@ const Workshop = (() => {
                 textarea(s.base, v => save({ base: v }), { mono: true, rows: 3, placeholder: '베이스 프롬프트' }),
                 textarea(s.baseNeg, v => save({ baseNeg: v }), { mono: true, rows: 3, placeholder: '베이스 부정' })),
 
+            h('div', { class: 'group-title' }, '백업'),
+            backupBox(),
+
             h('div', { class: 'group-title' }, '정보'),
             h('div', { class: 'group' },
                 h('div', { class: 'faint' }, `크랙 페인터 ${GM_info?.script?.version || ''} · 토큰 계산: ${Tags.exact() ? 'T5 사전(정확)' : '추정(+10% 여유) · 사전을 받는 중이거나 못 받았어'}`)));
         W.win.content.append(pane);
+    }
+
+    function backupBox() {
+        let withKeys = false;
+        const status = h('div', { class: 'faint' });
+        const file = h('input', { type: 'file', accept: '.json,application/json', hidden: true, onchange: async e => {
+            const f = e.target.files[0];
+            e.target.value = '';
+            if (!f) return;
+            try {
+                const c = DB.restore(JSON.parse(await f.text()));
+                Kit.toast(`설정을 불러왔어 · 작품 ${c.works}개${c.keys ? ` · 키 ${c.keys}개` : ''}`, { kind: 'ok' });
+                draw();
+                App.renderFigures();
+            } catch (err) {
+                Kit.toast(err instanceof SyntaxError ? 'JSON 파일이 아니야.' : err.message, { kind: 'err' });
+            }
+        } });
+        const download = () => {
+            const data = DB.backup(withKeys);
+            const d = new Date();
+            const name = `크랙페인터_설정백업_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`;
+            const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })), download: name });
+            document.body.append(a);
+            a.click();
+            setTimeout(() => { a.remove(); }, 1000);
+            status.textContent = `${name} · 작품 ${data.works.length}개${withKeys ? ' · 키 포함' : ''}`;
+        };
+        return h('div', { class: 'group' },
+            h('div', { class: 'faint' }, '설정과 작품(인물 카드·연결)을 파일 하나로 받아 둬. 다른 브라우저나 컴퓨터에서 불러오면 그대로 돌아와. 삽화 이미지는 들어가지 않아.'),
+            h('div', { class: 'row' }, toggle(false, v => { withKeys = v; }), h('span', { class: 'grow' }, 'API 키도 넣기'), h('span', { class: 'faint' }, '켜면 파일을 남에게 주지 마')),
+            h('div', { class: 'row' }, file, button('백업 파일 받기', download, { iconName: 'save' }), button('백업 불러오기', () => file.click(), { iconName: 'upload' })),
+            status);
     }
 
     return { open };
