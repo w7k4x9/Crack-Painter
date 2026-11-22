@@ -332,7 +332,7 @@ details.raw pre .k { color: var(--purple); }
 .toast.leaving { animation: out .2s ease forwards; }
 @keyframes slide { from { opacity: 0; transform: translateX(30px); } }
 @keyframes out { to { opacity: 0; transform: translateX(30px); } }
-.toast .app { width: 32px; height: 32px; border-radius: 8px; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }
+.toast .app { width: 32px; height: 32px; border-radius: 8px; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(180deg, #2C9BFF, #047CFF); }
 .toast .app svg { width: 18px; height: 18px; }
 .toast .app.err { background: linear-gradient(135deg, #ff6a5c, #ff3b30); }
 .toast .app.ok { background: linear-gradient(135deg, #5ee07a, #28c840); }
@@ -350,7 +350,7 @@ details.raw pre .k { color: var(--purple); }
 .dock { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: var(--win); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow); pointer-events: auto; animation: pop .2s; }
 .dock button { border: 0; background: transparent; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 11px; cursor: default; font-size: 12.5px; font-weight: 500; }
 .dock button:hover { background: var(--hover); }
-.dock .app { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #ff6b9a, #a259ff 55%, #3d8bff); }
+.dock .app { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; background: linear-gradient(180deg, #2C9BFF, #047CFF); }
 .dock .app svg { width: 15px; height: 15px; }
 
 /* 라이트박스 */
