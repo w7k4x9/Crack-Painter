@@ -1,0 +1,15 @@
+.cp2-msgbtn, .cp2-head { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: 7px; background: transparent; color: inherit; opacity: .62; cursor: pointer; padding: 0; }
+.cp2-msgbtn:hover, .cp2-head:hover { opacity: 1; background: rgba(127, 127, 127, .14); }
+.cp2-head { width: 32px; height: 32px; opacity: .8; }
+.cp2-msgbtn.busy { opacity: 1; color: #0a7aff; animation: cp2-pulse 1.2s ease-in-out infinite; }
+@keyframes cp2-pulse { 50% { opacity: .45; } }
+.cp2-figure { position: relative; margin: 14px 0; border-radius: 10px; overflow: hidden; line-height: 0; background: rgba(127, 127, 127, .1); user-select: none; }
+.cp2-figure img { width: 100%; height: auto; display: block; cursor: zoom-in; }
+.cp2-fbar { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 9px; background: rgba(28, 28, 30, .62); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); color: #fff; opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; line-height: 1; }
+.cp2-figure:hover .cp2-fbar, .cp2-figure:focus-within .cp2-fbar { opacity: 1; transform: none; }
+@media (hover: none) { .cp2-fbar { opacity: 1; transform: none; } }
+.cp2-fbtn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px; border: none; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; padding: 0; }
+.cp2-fbtn:hover { background: rgba(255, 255, 255, .16); }
+.cp2-fbtn.armed { background: #ff3b30; }
+.cp2-fcount { font: 600 11.5px/1 -apple-system, BlinkMacSystemFont, sans-serif; padding: 0 4px; }
+.cp2-fgap { flex: 1; }
