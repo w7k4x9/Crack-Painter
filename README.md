@@ -76,16 +76,20 @@ NovelAI V4+ 요청은 두 갈래야. 이 스크립트는 화면 구성부터 이
 
 ```sh
 npm run build   # src/ → crack-painter.user.js
-npm test        # 프롬프트 조립 · NAI 요청 · 응답 해석 단위 테스트
+npm test        # 태그 분류 · 칸별 조립 · NAI 요청 · 응답 해석 테스트
 ```
+
+2.2.0부터 코드를 처음부터 다시 썼어. 기능과 화면, 저장 위치(설정·키·삽화)는 1.5.0과 같아서 쓰던 걸 그대로 이어 써.
 
 | 파일 | 역할 |
 |---|---|
-| `src/core.js` | 태그 분류, 칸별 조립, 토큰 추정 (DOM 없음) |
-| `src/nai.js` | NAI V5/V4.5 요청 본문, 응답에서 이미지 꺼내기 |
-| `src/llm.js` | 장면 분석 지시문, Gemini/DeepSeek 호출 |
-| `src/store.js` | GM 저장소, IndexedDB |
-| `src/crack.js` | 크랙 화면에서 메시지·문단 찾기 |
-| `src/ui.js` `src/ui.css` | macOS 스타일 창·컨트롤·알림 (Shadow DOM) |
-| `src/studio.js` `src/settings.js` | 스튜디오, 설정 창 |
-| `src/app.js` | 생성 흐름, 채팅 안 삽화와 버튼 |
+| `src/lib/tags.js` | 태그 나누기·종류 판별·토큰 어림 (DOM 없음) |
+| `src/lib/compose.js` | 베이스 / 캐릭터 칸 조립, 모델 정보 |
+| `src/lib/plan.js` | 분석 AI 응답 → 스튜디오 상태 |
+| `src/lib/novelai.js` | NAI V5/V4.5 요청, 응답에서 그림 꺼내기 |
+| `src/net/http.js` `src/net/analyst.js` | 요청과 오류 안내, 장면 분석 지시문 · Gemini/DeepSeek |
+| `src/data/prefs.js` `src/data/vault.js` | 설정·키(유저스크립트 저장소), 그림·기록(IndexedDB) |
+| `src/data/import2.js` | 2.0에서 만든 삽화를 한 번 가져오기 |
+| `src/page/site.js` `src/page/disk.js` | 크랙 화면 읽기, 내 컴퓨터 폴더 저장 |
+| `src/ui/kit.js` `src/ui/*.css` | macOS 스타일 창·컨트롤·알림 (Shadow DOM) |
+| `src/app/*.js` | 생성 흐름, 채팅 속 삽화·버튼, 스튜디오, 갤러리, 설정 |
