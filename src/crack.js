@@ -1,92 +1,164 @@
-// 크랙 화면과 메시지 API.
-// 메시지 묶음: [data-message-group-id] (= 메시지 _id), 본문: .wrtn-markdown, 그 바로 다음 줄이 버튼 줄.
-// 역할(user/assistant)은 화면으로 가르기 어려워 메시지 API로 확인한다.
+// ─────────────────────────────────────────────────────────────
+// Crack: crack.wrtn.ai 채팅 화면 연동
+// 메시지 판별 기준(data-message-group-id, .wrtn-markdown, "메시지 옵션" 버튼)은
+// 기존 스크립트에서 실제 화면으로 검증된 것을 그대로 쓴다.
+// ─────────────────────────────────────────────────────────────
 const Crack = (() => {
-    const API = 'https://crack-api.wrtn.ai/crack-gen/v3';
-    const roles = new Map();       // messageId → role
-    const contents = new Map();    // messageId → content
-    let chatInfo = { id: '', story: null };
+    'use strict';
 
-    function chatId() {
-        const m = location.pathname.match(/\/episodes\/([0-9a-f]{12,})/i);
+    const OPTIONS_BTN = 'button[aria-label="메시지 옵션"]';
+    const OWN = '.cp-figure, .cp-msg-btn, .cp-menu-row, #cp-host';
+
+    function roomId() {
+        const m = location.pathname.match(/\/episodes\/([^/?#]+)/);
         return m ? m[1] : '';
     }
-    function storyId() {
-        const m = location.pathname.match(/\/stories\/([0-9a-f]{12,})/i);
-        return m ? m[1] : (chatInfo.story?._id || '');
+
+    function hash(text) {
+        let h = 5381;
+        const s = String(text || '');
+        for (let i = 0; i < s.length; i++) h = (((h << 5) + h) + s.charCodeAt(i)) >>> 0;
+        return h.toString(36);
     }
 
-    function token() {
-        const m = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
-        return m ? decodeURIComponent(m[1]) : '';
+    function cleanText(el) {
+        if (!el) return '';
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll(`${OWN}, pre, .wrtn-codeblock, .not-wrtn-markdown`).forEach(n => n.remove());
+        return clone.textContent.replace(/\s+/g, ' ').trim();
     }
 
-    async function get(path) {
-        const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token()}` }, credentials: 'include' });
-        if (!res.ok) throw new Error(`크랙 API ${res.status}`);
-        const j = await res.json();
-        return j.data ?? j;
+    function groupOf(node) {
+        return node?.closest?.('[data-message-group-id]') || null;
     }
 
-    async function chat() {
-        const id = chatId();
-        if (!id) return null;
-        if (chatInfo.id !== id) {
-            const d = await get(`/chats/${id}`);
-            chatInfo = { id, story: d.story || null, title: d.title || d.story?.name || '' };
+    function messageKey(markdown) {
+        const id = groupOf(markdown)?.getAttribute('data-message-group-id');
+        return id ? `msg_${hash(id)}` : `text_${hash(cleanText(markdown).slice(0, 4000))}`;
+    }
+
+    function isMainMarkdown(el) {
+        return !!el?.classList?.contains('wrtn-markdown') && !el.closest('.not-wrtn-markdown') && !el.closest('.cp-figure') && !el.closest('button');
+    }
+
+    function isUserNode(root) {
+        if (!root) return false;
+        if (root.closest?.('.bg-surface_chat_secondary') || root.querySelector?.('.bg-surface_chat_secondary')) return true;
+        if (root.matches?.('.wrtn-markdown.css-cbn3z5, .wrtn-markdown.css-1el105x, .wrtn-markdown.css-peb4p4')) return true;
+        if (root.querySelector?.('.wrtn-markdown.css-cbn3z5, .wrtn-markdown.css-1el105x, .wrtn-markdown.css-peb4p4')) return true;
+        if (root.querySelector?.('div.flex-row.items-end.justify-between.border-y') || root.closest?.('div.flex-row.items-end.justify-between.border-y')) return true;
+        return false;
+    }
+
+    function footerOf(group) {
+        const btn = group?.querySelector?.(OPTIONS_BTN);
+        if (!btn) return null;
+        const footer = btn.closest('div.flex.items-center.justify-between.mt-2') || btn.closest('[class*="justify-between"][class*="mt-2"]');
+        return footer && group.contains(footer) ? footer : null;
+    }
+
+    function markdownOf(group) {
+        const list = Array.from(group.querySelectorAll('.wrtn-markdown')).filter(isMainMarkdown);
+        return list.find(md => !isUserNode(md)) || null;
+    }
+
+    function isSuggestion(el) {
+        return !!el.closest?.('button[aria-label="답변 수정"]');
+    }
+
+    // AI 답변 메시지 목록: [{ group, markdown, footer }]
+    function assistantMessages(scope = document) {
+        const groups = new Set();
+        if (scope.matches?.('[data-message-group-id]')) groups.add(scope);
+        scope.querySelectorAll?.('[data-message-group-id]').forEach(g => groups.add(g));
+        const out = [];
+        for (const group of groups) {
+            if (isUserNode(group) || isSuggestion(group)) continue;
+            if (group.querySelector('.ProseMirror[contenteditable="true"], .__chat_input_textarea')) continue;
+            const markdown = markdownOf(group);
+            const footer = footerOf(group);
+            if (!markdown || !footer) continue;
+            if (cleanText(markdown).length < 5) continue;
+            out.push({ group, markdown, footer });
         }
-        return chatInfo;
+        return out.sort((a, b) => (a.group.compareDocumentPosition(b.group) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
     }
 
-    // 최근 메시지 n개(새것부터 옴 → 오래된 것부터로 뒤집어 돌려준다)
-    async function recent(n = 20) {
-        const id = chatId();
-        if (!id) return [];
-        const d = await get(`/chats/${id}/messages?limit=${Math.min(50, n)}`);
-        const list = (d.messages || []).map(m => ({ id: m._id, role: m.role, content: m.content || '' }));
-        for (const m of list) { roles.set(m.id, m.role); contents.set(m.id, m.content); }
-        return list.reverse();
+    // 문단으로 셀 블록 (삽화를 넣을 수 있는 자리)
+    function blocks(markdown) {
+        return Array.from(markdown?.children || []).filter(el => {
+            if (el.matches(`${OWN}, pre, .wrtn-codeblock, .not-wrtn-markdown`)) return false;
+            if (el.matches('p, blockquote, ul, ol, table, h1, h2, h3, h4, h5, h6')) return !!cleanText(el);
+            if (el.tagName === 'DIV') return !!cleanText(el);
+            return false;
+        });
     }
 
-    // 본문 정리: 숨은 주석 줄([//]: # "…")과 이미지 문법 제거
-    function plain(text) {
-        return String(text || '')
-            .split('\n').filter(l => !/^\s*\[\/\/\]:\s*#/.test(l)).join('\n')
-            .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-            .replace(/\{\{img::[^}]*\}\}/g, '')
-            .replace(/\n{3,}/g, '\n\n').trim();
-    }
-
-    function groups() {
-        return [...document.querySelectorAll('[data-message-group-id]')].map(g => {
-            const md = [...g.querySelectorAll('.wrtn-markdown')].find(el => !el.closest('.cp2-root'));
-            return { el: g, id: g.dataset.messageGroupId, md, footer: md?.nextElementSibling || null };
-        }).filter(x => x.md);
-    }
-
-    async function assistantGroups() {
-        const all = groups();
-        if (all.some(g => !roles.has(g.id))) {
-            try { await recent(Math.max(20, all.length + 4)); } catch (e) { console.warn('[크랙 페인터] 메시지 목록', e); }
+    function paragraphs(markdown) {
+        const list = blocks(markdown).map((el, index) => ({ index, text: cleanText(el) })).filter(p => p.text);
+        if (!list.length) {
+            const t = cleanText(markdown);
+            return t ? [{ index: 0, text: t }] : [];
         }
-        return all.filter(g => roles.get(g.id) === 'assistant');
+        return list;
     }
 
-    // 문단 = 본문의 바로 아래 요소 중 글이 있는 것
-    function paragraphs(md) {
-        return [...md.children].filter(el => !el.classList.contains('cp2-figure') && (el.innerText || '').trim());
+    // 대상 메시지 앞쪽 대화 (DOM 에 그려진 것만). 사용자·AI 모두.
+    function contextBefore(markdown, turns = 4, maxChars = 3500) {
+        const target = groupOf(markdown);
+        if (!target) return '';
+        const all = Array.from(document.querySelectorAll('[data-message-group-id]'))
+            .filter(g => g !== target && (g.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING));
+        const picked = all.slice(-turns * 2);
+        const lines = picked.map(g => {
+            const md = Array.from(g.querySelectorAll('.wrtn-markdown')).find(isMainMarkdown);
+            const text = cleanText(md || g);
+            if (!text) return '';
+            return `${isUserNode(g) ? '사용자' : 'AI'}: ${text}`;
+        }).filter(Boolean);
+        let joined = lines.join('\n');
+        if (joined.length > maxChars) joined = '…' + joined.slice(-maxChars);
+        return joined;
     }
 
-    function headerSlot() {
-        return document.querySelector('button[aria-label="메시지 검색"]')?.parentElement || null;
+    // 문단 index 뒤에 figure 를 넣는다. 기존 figure 는 먼저 뺀다.
+    function placeFigure(markdown, figure, index) {
+        markdown.querySelectorAll(':scope > .cp-figure').forEach(f => { if (f !== figure) f.remove(); });
+        const list = blocks(markdown);
+        const target = list[Math.max(0, Math.min(Number(index) || 0, list.length - 1))];
+        if (target && target.parentElement === markdown) target.insertAdjacentElement('afterend', figure);
+        else markdown.appendChild(figure);
     }
 
-    function dark() {
-        const bg = getComputedStyle(document.body).backgroundColor.match(/\d+/g);
-        if (!bg) return matchMedia('(prefers-color-scheme: dark)').matches;
-        const [r, g, b] = bg.map(Number);
-        return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+    function findMarkdownByKey(key) {
+        return assistantMessages().find(m => messageKey(m.markdown) === key)?.markdown || null;
     }
 
-    return { chatId, storyId, chat, recent, plain, groups, assistantGroups, paragraphs, headerSlot, dark, content: id => contents.get(id) || '' };
+    // 오른쪽 메뉴의 "상황 이미지 보기" 행 (설정 진입점을 그 아래에 복제해 붙인다)
+    function situationRow() {
+        for (const sw of document.querySelectorAll('button[role="switch"]')) {
+            const row = sw.closest('.px-2\\.5') || sw.parentElement?.parentElement;
+            if (!row) continue;
+            const label = Array.from(row.querySelectorAll('span')).find(s => s.textContent.replace(/\s+/g, ' ').trim() === '상황 이미지 보기');
+            if (label) return row;
+        }
+        return null;
+    }
+
+    function siteTheme() {
+        const tok = [document.body, document.documentElement].map(el => `${el.getAttribute('data-theme') || ''} ${el.className || ''}`.toLowerCase()).join(' ');
+        if (/\bdark\b/.test(tok)) return 'dark';
+        if (/\blight\b/.test(tok)) return 'light';
+        try {
+            const m = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g);
+            if (m && m.length >= 3) {
+                const [r, g, b] = m.map(Number);
+                const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+                if ((m[3] === undefined || Number(m[3]) > 0.3)) return lum < 0.4 ? 'dark' : 'light';
+            }
+        } catch (_) {}
+        return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    return { roomId, messageKey, assistantMessages, paragraphs, contextBefore, placeFigure, findMarkdownByKey, situationRow, siteTheme, cleanText, OWN };
 })();
